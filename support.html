@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NowFunded — Support</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    /* ── Support-specific styles ── */
+
+    body { overflow: hidden; height: 100dvh; }
+
+    .support-shell {
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+    }
+
+    .main-content--chat {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      padding: 0;
+    }
+
+    /* ── New-thread state ── */
+    #new-thread-state {
+      flex: 1;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: var(--sp-8) var(--sp-6);
+      gap: var(--sp-4);
+    }
+
+    #new-thread-state.visible { display: flex; }
+
+    .support-icon {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: rgba(201,123,74,.12);
+      border: 1.5px solid rgba(201,123,74,.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      margin-bottom: var(--sp-2);
+    }
+
+    /* ── Thread (chat) state ── */
+    #thread-state {
+      flex: 1;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #thread-state.visible { display: flex; }
+
+    .thread-header {
+      flex-shrink: 0;
+      padding: var(--sp-3) var(--sp-5);
+      border-bottom: 1px solid var(--c-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--sp-3);
+    }
+
+    .thread-header__info {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+    }
+
+    .thread-header__title {
+      font-family: var(--font-display);
+      font-size: 0.9375rem;
+      font-weight: 600;
+      color: var(--c-surface);
+    }
+
+    /* Message list */
+    .message-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--sp-5);
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-3);
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .msg-row {
+      display: flex;
+      flex-direction: column;
+      max-width: 80%;
+    }
+
+    .msg-row--trader { align-self: flex-end; align-items: flex-end; }
+    .msg-row--admin  { align-self: flex-start; align-items: flex-start; }
+
+    .msg-bubble {
+      padding: var(--sp-3) var(--sp-4);
+      border-radius: var(--r-lg);
+      font-size: 0.875rem;
+      line-height: 1.5;
+      word-break: break-word;
+      white-space: pre-wrap;
+    }
+
+    .msg-row--trader .msg-bubble {
+      background: var(--c-copper);
+      color: #1A1208;
+      border-bottom-right-radius: var(--r-sm);
+    }
+
+    .msg-row--admin .msg-bubble {
+      background: var(--c-surface-ghost);
+      border: 1px solid var(--c-border);
+      color: var(--c-surface);
+      border-bottom-left-radius: var(--r-sm);
+    }
+
+    .msg-meta {
+      font-size: 0.6875rem;
+      color: var(--c-muted);
+      margin-top: var(--sp-1);
+      padding: 0 var(--sp-1);
+    }
+
+    /* Day divider */
+    .msg-day-divider {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-3);
+      margin: var(--sp-2) 0;
+    }
+
+    .msg-day-divider__line { flex: 1; height: 1px; background: var(--c-border); }
+
+    .msg-day-divider__text {
+      font-size: 0.6875rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--c-muted);
+      white-space: nowrap;
+    }
+
+    /* Closed banner */
+    .thread-closed-banner {
+      flex-shrink: 0;
+      margin: 0 var(--sp-5) var(--sp-3);
+      padding: var(--sp-3) var(--sp-4);
+      background: rgba(139,134,128,.10);
+      border: 1px solid var(--c-border);
+      border-radius: var(--r-md);
+      font-size: 0.8125rem;
+      color: var(--c-muted);
+      text-align: center;
+      display: none;
+    }
+
+    .thread-closed-banner.visible { display: block; }
+
+    /* Composer */
+    .composer {
+      flex-shrink: 0;
+      padding: var(--sp-3) var(--sp-5) calc(var(--sp-3) + env(safe-area-inset-bottom));
+      border-top: 1px solid var(--c-border);
+      background: rgba(15,17,21,.96);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      display: flex;
+      align-items: flex-end;
+      gap: var(--sp-3);
+    }
+
+    .composer textarea {
+      flex: 1;
+      resize: none;
+      max-height: 120px;
+      font-family: var(--font-ui);
+      font-size: 0.9375rem;
+      line-height: 1.4;
+      color: var(--c-surface);
+      background: var(--c-surface-ghost);
+      border: 1.5px solid var(--c-border);
+      border-radius: var(--r-md);
+      padding: var(--sp-3) var(--sp-4);
+      transition: border-color var(--t-fast) var(--ease);
+    }
+
+    .composer textarea:focus {
+      outline: none;
+      border-color: var(--c-copper);
+    }
+
+    .composer textarea::placeholder { color: var(--c-muted); }
+
+    .composer textarea:disabled { opacity: .5; }
+
+    .btn-send {
+      flex-shrink: 0;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.125rem;
+      background: var(--c-copper);
+      border: none;
+      color: #1A1208;
+      cursor: pointer;
+      transition: background var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
+    }
+
+    .btn-send:hover:not(:disabled) { background: #b86b3c; }
+    .btn-send:active:not(:disabled) { transform: scale(0.93); }
+    .btn-send:disabled { opacity: .4; pointer-events: none; }
+
+    .btn-send .spinner { width: 18px; height: 18px; border-width: 2px; }
+
+    /* Typing-out skeleton for thread loading */
+    .thread-skeleton {
+      flex: 1;
+      padding: var(--sp-5);
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-3);
+    }
+
+    .thread-skeleton .skeleton-bubble {
+      height: 44px;
+      border-radius: var(--r-lg);
+      background: linear-gradient(90deg,
+        rgba(255,255,255,.04) 25%, rgba(255,255,255,.08) 50%, rgba(255,255,255,.04) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+    }
+
+    @keyframes shimmer {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div class="loading-overlay" id="page-loading">
+  <div class="spinner spinner--lg"></div>
+</div>
+
+<div class="support-shell">
+
+  <!-- Top bar -->
+  <header class="topbar">
+    <span class="topbar__logo">Now<span>Funded</span></span>
+    <a href="dashboard.html" class="btn btn--ghost btn--sm">Dashboard</a>
+  </header>
+
+  <main class="main-content--chat" id="main-content" style="display:none;">
+
+    <!-- ── No thread yet ── -->
+    <div id="new-thread-state">
+      <div class="support-icon">💬</div>
+      <h2 style="font-family:var(--font-display);font-size:1.375rem;color:var(--c-surface);">Need help?</h2>
+      <p class="text-muted" style="max-width:280px;line-height:1.6;font-size:0.9375rem;">
+        Start a conversation and our team will get back to you here. You'll be notified the moment we reply.
+      </p>
+      <button class="btn btn--primary btn--lg mt-4" id="btn-start-thread" style="width:100%;max-width:300px;">
+        Start a Conversation
+      </button>
+    </div>
+
+    <!-- ── Active / closed thread ── -->
+    <div id="thread-state">
+
+      <div class="thread-header">
+        <div class="thread-header__info">
+          <span class="thread-header__title">Support Thread</span>
+          <span class="badge badge--open" id="thread-status-badge">Open</span>
+        </div>
+      </div>
+
+      <div class="message-list" id="message-list">
+        <!-- messages injected here -->
+      </div>
+
+      <div class="thread-closed-banner" id="closed-banner">
+        This conversation is closed. Start a new one if you still need help.
+      </div>
+
+      <form class="composer" id="composer">
+        <textarea
+          id="msg-input"
+          rows="1"
+          placeholder="Type a message…"
+          maxlength="2000"
+          autocomplete="off"
+        ></textarea>
+        <button type="submit" class="btn-send" id="btn-send" disabled aria-label="Send message">
+          <span id="send-icon">➤</span>
+        </button>
+      </form>
+
+    </div>
+
+  </main>
+
+</div><!-- /.support-shell -->
+
+<!-- Toast container -->
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+  // ─── Telegram init ──────────────────────────────────────────────────────
+  const tg = window.Telegram?.WebApp;
+  if (tg) { tg.ready(); tg.expand(); tg.BackButton.show(); }
+  tg?.BackButton?.onClick(() => { window.location.href = 'dashboard.html'; });
+
+  const user        = tg?.initDataUnsafe?.user;
+  const telegramId  = user?.id ? String(user.id) : null;
+
+  // ─── GAS endpoint ───────────────────────────────────────────────────────
+  const GAS_URL = ''; // <-- paste your deployed GAS Web App URL here
+
+  // ─── State ──────────────────────────────────────────────────────────────
+  let thread       = null;   // { thread_id, status, created_at, last_message_at } or null
+  let messages      = [];
+  let sending       = false;
+  let polling       = null;
+
+  // ─── DOM refs ───────────────────────────────────────────────────────────
+  const pageLoading   = document.getElementById('page-loading');
+  const mainContent   = document.getElementById('main-content');
+  const newThreadState= document.getElementById('new-thread-state');
+  const threadState   = document.getElementById('thread-state');
+  const btnStartThread= document.getElementById('btn-start-thread');
+  const statusBadge   = document.getElementById('thread-status-badge');
+  const messageList   = document.getElementById('message-list');
+  const closedBanner  = document.getElementById('closed-banner');
+  const composer      = document.getElementById('composer');
+  const msgInput      = document.getElementById('msg-input');
+  const btnSend       = document.getElementById('btn-send');
+  const sendIcon       = document.getElementById('send-icon');
+
+  // ─── Boot ───────────────────────────────────────────────────────────────
+  async function init() {
+    if (!telegramId) {
+      showToast('error', '⚠️', 'Open this from within Telegram.');
+      pageLoading.style.display = 'none';
+      mainContent.style.display = 'block';
+      return;
+    }
+
+    try {
+      const res = await gasPost({ action: 'getSupportThread', telegram_id: telegramId });
+      thread   = res.thread   || null;
+      messages = res.messages || [];
+
+      if (thread) {
+        renderThread();
+        threadState.classList.add('visible');
+        startPolling();
+      } else {
+        newThreadState.classList.add('visible');
+      }
+
+    } catch (err) {
+      console.error('Init error:', err);
+      newThreadState.classList.add('visible');
+      showToast('error', '⚠️', 'Could not load support thread.');
+    } finally {
+      pageLoading.style.display = 'none';
+      mainContent.style.display = 'flex';
+    }
+  }
+
+  // ─── Start a new thread ─────────────────────────────────────────────────
+  btnStartThread.addEventListener('click', async () => {
+    btnStartThread.classList.add('btn--loading');
+    btnStartThread.disabled = true;
+
+    try {
+      const res = await gasPost({
+        action:      'startSupportThread',
+        telegram_id: telegramId,
+      });
+
+      if (!res.success) throw new Error(res.error || 'Could not start thread.');
+
+      thread   = res.thread;
+      messages = res.messages || [];
+
+      newThreadState.classList.remove('visible');
+      threadState.classList.add('visible');
+      renderThread();
+      startPolling();
+      tg?.HapticFeedback?.notificationOccurred('success');
+
+    } catch (err) {
+      console.error('Start thread error:', err);
+      showToast('error', '⚠️', err.message || 'Something went wrong.');
+      btnStartThread.classList.remove('btn--loading');
+      btnStartThread.disabled = false;
+    }
+  });
+
+  // ─── Render thread (status + messages) ──────────────────────────────────
+  function renderThread() {
+    const isOpen = thread.status === 'open';
+    statusBadge.textContent = isOpen ? 'Open' : 'Closed';
+    statusBadge.className   = `badge badge--${isOpen ? 'open' : 'closed'}`;
+    closedBanner.classList.toggle('visible', !isOpen);
+    msgInput.disabled = !isOpen;
+    msgInput.placeholder = isOpen ? 'Type a message…' : 'This conversation is closed';
+
+    renderMessages();
+    updateSendBtn();
+  }
+
+  function renderMessages() {
+    const wasAtBottom = isScrolledToBottom();
+    messageList.innerHTML = '';
+
+    let lastDay = null;
+    messages.forEach(msg => {
+      const day = formatDay(msg.created_at);
+      if (day !== lastDay) {
+        messageList.appendChild(buildDayDivider(day));
+        lastDay = day;
+      }
+      messageList.appendChild(buildMessageRow(msg));
+    });
+
+    if (wasAtBottom) scrollToBottom();
+  }
+
+  function buildDayDivider(day) {
+    const el = document.createElement('div');
+    el.className = 'msg-day-divider';
+    el.innerHTML = `
+      <div class="msg-day-divider__line"></div>
+      <span class="msg-day-divider__text">${day}</span>
+      <div class="msg-day-divider__line"></div>
+    `;
+    return el;
+  }
+
+  function buildMessageRow(msg) {
+    const isTrader = msg.sender === 'trader';
+    const row = document.createElement('div');
+    row.className = `msg-row msg-row--${isTrader ? 'trader' : 'admin'}`;
+    row.innerHTML = `
+      <div class="msg-bubble">${escHtml(msg.content)}</div>
+      <div class="msg-meta">${isTrader ? 'You' : 'NowFunded Support'} · ${formatTime(msg.created_at)}</div>
+    `;
+    return row;
+  }
+
+  // ─── Send a message ─────────────────────────────────────────────────────
+  composer.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    await sendMessage();
+  });
+
+  msgInput.addEventListener('input', () => {
+    autoGrow(msgInput);
+    updateSendBtn();
+  });
+
+  msgInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  async function sendMessage() {
+    const content = msgInput.value.trim();
+    if (!content || sending || !thread || thread.status !== 'open') return;
+
+    sending = true;
+    updateSendBtn();
+    sendIcon.style.display = 'none';
+    btnSend.insertAdjacentHTML('beforeend', '<span class="spinner"></span>');
+
+    // Optimistic append
+    const optimisticMsg = {
+      message_id: 'temp-' + Date.now(),
+      sender: 'trader',
+      content,
+      created_at: new Date().toISOString(),
+    };
+    messages.push(optimisticMsg);
+    renderMessages();
+    msgInput.value = '';
+    autoGrow(msgInput);
+
+    try {
+      const res = await gasPost({
+        action:      'sendSupportMessage',
+        telegram_id: telegramId,
+        thread_id:   thread.thread_id,
+        content,
+      });
+
+      if (!res.success) throw new Error(res.error || 'Message failed to send.');
+
+      // Replace optimistic message with confirmed one if server returns it
+      if (res.message) {
+        const idx = messages.findIndex(m => m.message_id === optimisticMsg.message_id);
+        if (idx !== -1) messages[idx] = res.message;
+      }
+      tg?.HapticFeedback?.notificationOccurred('success');
+
+    } catch (err) {
+      console.error('Send error:', err);
+      // Roll back optimistic message
+      messages = messages.filter(m => m.message_id !== optimisticMsg.message_id);
+      msgInput.value = content;
+      showToast('error', '⚠️', 'Message failed to send. Try again.');
+    } finally {
+      sending = false;
+      sendIcon.style.display = '';
+      btnSend.querySelector('.spinner')?.remove();
+      renderMessages();
+      updateSendBtn();
+    }
+  }
+
+  function updateSendBtn() {
+    const hasText = msgInput.value.trim().length > 0;
+    const isOpen  = thread && thread.status === 'open';
+    btnSend.disabled = !hasText || !isOpen || sending;
+  }
+
+  function autoGrow(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+  }
+
+  // ─── Polling for admin replies ──────────────────────────────────────────
+  function startPolling() {
+    if (polling) clearInterval(polling);
+    polling = setInterval(async () => {
+      if (!thread) return;
+      try {
+        const res = await gasPost({ action: 'getSupportThread', telegram_id: telegramId });
+        if (res.thread) {
+          const statusChanged = res.thread.status !== thread.status;
+          thread   = res.thread;
+          messages = res.messages || [];
+          renderThread();
+          if (statusChanged) tg?.HapticFeedback?.notificationOccurred('warning');
+        }
+      } catch (_) {
+        // Silent — don't interrupt the user for a failed poll
+      }
+    }, 8000);
+  }
+
+  window.addEventListener('beforeunload', () => { if (polling) clearInterval(polling); });
+
+  // ─── Scroll helpers ──────────────────────────────────────────────────────
+  function isScrolledToBottom() {
+    const threshold = 80;
+    return messageList.scrollHeight - messageList.scrollTop - messageList.clientHeight < threshold;
+  }
+
+  function scrollToBottom() {
+    messageList.scrollTop = messageList.scrollHeight;
+  }
+
+  // ─── GAS helper ─────────────────────────────────────────────────────────
+  async function gasPost(body) {
+    if (!GAS_URL) throw new Error('GAS_URL not set');
+    const res  = await fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    return data;
+  }
+
+  // ─── Toast ──────────────────────────────────────────────────────────────
+  function showToast(type, icon, msg) {
+    const container = document.getElementById('toast-container');
+    const el = document.createElement('div');
+    el.className = `toast toast--${type}`;
+    el.innerHTML = `<span class="toast__icon">${icon}</span><span class="toast__msg">${msg}</span>`;
+    container.appendChild(el);
+    setTimeout(() => {
+      el.classList.add('toast--exit');
+      setTimeout(() => el.remove(), 300);
+    }, 4000);
+  }
+
+  // ─── Utils ──────────────────────────────────────────────────────────────
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function formatTime(iso) {
+    try {
+      return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    } catch { return ''; }
+  }
+
+  function formatDay(iso) {
+    try {
+      const d = new Date(iso);
+      const today = new Date();
+      const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+      const sameDay = (a, b) => a.toDateString() === b.toDateString();
+      if (sameDay(d, today)) return 'Today';
+      if (sameDay(d, yesterday)) return 'Yesterday';
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    } catch { return ''; }
+  }
+
+  // ─── Kick off ───────────────────────────────────────────────────────────
+  init();
+</script>
+</body>
+</html>

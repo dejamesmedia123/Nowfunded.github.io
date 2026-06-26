@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NowFunded Admin — Login</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .login-wrap {
+      min-height: 100dvh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: var(--sp-6);
+    }
+
+    .login-card {
+      width: 100%;
+      max-width: 380px;
+      background: #141619;
+      border: 1px solid var(--c-border);
+      border-radius: var(--r-xl);
+      padding: var(--sp-10) var(--sp-8);
+    }
+
+    .login-logo {
+      font-family: var(--font-display);
+      font-size: 1.75rem;
+      font-weight: 600;
+      color: var(--c-surface);
+      letter-spacing: -0.02em;
+      text-align: center;
+      margin-bottom: var(--sp-2);
+    }
+    .login-logo span { color: var(--c-copper); }
+
+    .login-label {
+      text-align: center;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--c-muted);
+      margin-bottom: var(--sp-8);
+    }
+
+    .login-form {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-4);
+    }
+
+    .login-error {
+      display: none;
+      align-items: center;
+      gap: var(--sp-2);
+      background: rgba(232,72,60,.12);
+      border: 1px solid rgba(232,72,60,.25);
+      color: var(--c-red);
+      font-size: 0.8125rem;
+      border-radius: var(--r-md);
+      padding: var(--sp-3) var(--sp-4);
+    }
+    .login-error--visible { display: flex; }
+
+    .login-footer {
+      margin-top: var(--sp-6);
+      text-align: center;
+      font-size: 0.75rem;
+      color: var(--c-muted);
+    }
+  </style>
+</head>
+<body>
+
+<div class="login-wrap">
+  <div class="login-card">
+
+    <div class="login-logo">Now<span>Funded</span></div>
+    <div class="login-label">Admin Panel</div>
+
+    <div class="login-error" id="login-error" role="alert">
+      <span>⚠️</span>
+      <span id="login-error-msg">Incorrect password. Please try again.</span>
+    </div>
+
+    <div class="login-form">
+      <div class="form-group">
+        <label class="form-label" for="password-input">Password</label>
+        <input
+          type="password"
+          class="form-input form-input--light"
+          id="password-input"
+          placeholder="Enter admin password"
+          autocomplete="current-password"
+          autofocus
+        />
+      </div>
+
+      <button class="btn btn--primary btn--full" id="btn-login">
+        Sign In
+      </button>
+    </div>
+
+    <div class="login-footer">NowFunded · Admin Panel</div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────────────
+  // If already logged in, skip straight to Daily Ops
+  // ─────────────────────────────────────────────────────────────────────
+  if (localStorage.getItem('nf_admin_session')) {
+    window.location.href = 'admin-ops.html';
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // GAS endpoint — paste your deployed Web App URL here
+  // ─────────────────────────────────────────────────────────────────────
+  const GAS_URL = 'https://script.google.com/macros/s/AKfycbyAXxehDNrO_VeOTuCzh952YzVHwydkMZLr51wfvLVajOBDIt-DznnT7QaEAsakrqAW/exec'; // <-- paste GAS Web App URL
+
+  // ─────────────────────────────────────────────────────────────────────
+  // DOM refs
+  // ─────────────────────────────────────────────────────────────────────
+  const passwordInput = document.getElementById('password-input');
+  const btnLogin      = document.getElementById('btn-login');
+  const loginError    = document.getElementById('login-error');
+  const loginErrorMsg = document.getElementById('login-error-msg');
+
+  // ─────────────────────────────────────────────────────────────────────
+  // Login
+  // ─────────────────────────────────────────────────────────────────────
+  async function attemptLogin() {
+    const password = passwordInput.value.trim();
+    if (!password) return;
+
+    hideError();
+    btnLogin.classList.add('btn--loading');
+    btnLogin.disabled = true;
+
+    try {
+      const res = await fetch(GAS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'adminLogin', password }),
+      });
+      const data = await res.json();
+
+      if (!data.success) {
+        showError(data.error === 'wrong_password'
+          ? 'Incorrect password. Please try again.'
+          : 'Login failed. Please try again.');
+        passwordInput.value = '';
+        passwordInput.focus();
+        return;
+      }
+
+      // Store the signed session token issued by GAS
+      localStorage.setItem('nf_admin_session', data.session_token);
+      window.location.href = 'admin-ops.html';
+
+    } catch (err) {
+      showError('Could not reach the server. Check your connection.');
+    } finally {
+      btnLogin.classList.remove('btn--loading');
+      btnLogin.disabled = false;
+    }
+  }
+
+  function showError(msg) {
+    loginErrorMsg.textContent = msg;
+    loginError.classList.add('login-error--visible');
+  }
+
+  function hideError() {
+    loginError.classList.remove('login-error--visible');
+  }
+
+  btnLogin.addEventListener('click', attemptLogin);
+  passwordInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') attemptLogin();
+    if (e.key !== 'Enter') hideError();
+  });
+
+  // ─────────────────────────────────────────────────────────────────────
+  // Toast (kept for any future use / network errors shown as toast)
+  // ─────────────────────────────────────────────────────────────────────
+  function showToast(type, icon, msg) {
+    const container = document.getElementById('toast-container');
+    const el = document.createElement('div');
+    el.className = `toast toast--${type}`;
+    el.innerHTML = `<span class="toast__icon">${icon}</span><span class="toast__msg">${msg}</span>`;
+    container.appendChild(el);
+    setTimeout(() => {
+      el.classList.add('toast--exit');
+      setTimeout(() => el.remove(), 300);
+    }, 4000);
+  }
+</script>
+</body>
+</html>

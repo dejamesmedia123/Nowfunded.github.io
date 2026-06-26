@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NowFunded — Marketplace</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    /* ── Marketplace-specific styles ── */
+
+    .main-content {
+      padding-bottom: calc(var(--sp-16) + env(safe-area-inset-bottom));
+    }
+
+    /* Section label */
+    .section-eyebrow {
+      font-size: 0.6875rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--c-muted);
+      margin-bottom: var(--sp-3);
+    }
+
+    /* Plan grid */
+    .plans-grid {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-4);
+      margin-bottom: var(--sp-8);
+    }
+
+    /* Override plan-card for dark bg */
+    .plan-card {
+      background: #16191E;
+      color: var(--c-surface);
+      border: 1.5px solid var(--c-border);
+      cursor: pointer;
+      transition: border-color var(--t-fast) var(--ease),
+                  transform var(--t-fast) var(--ease),
+                  background var(--t-fast) var(--ease);
+    }
+
+    .plan-card:hover  { transform: translateY(-2px); border-color: rgba(201,123,74,.4); }
+    .plan-card--selected {
+      border-color: var(--c-copper);
+      background: rgba(201,123,74,.06);
+    }
+
+    .plan-card__size {
+      color: var(--c-surface);
+    }
+
+    .plan-card__name {
+      color: var(--c-muted);
+    }
+
+    .plan-stat__label { color: var(--c-muted); }
+    .plan-stat__value { color: var(--c-surface); }
+
+    /* Selected tick badge */
+    .plan-card__tick {
+      position: absolute;
+      top: var(--sp-4);
+      right: var(--sp-4);
+      width: 22px;
+      height: 22px;
+      background: var(--c-copper);
+      border-radius: 50%;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      color: #fff;
+      z-index: 2;
+    }
+
+    .plan-card--selected .plan-card__tick { display: flex; }
+
+    /* Divider with label */
+    .section-divider {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-3);
+      margin: var(--sp-6) 0 var(--sp-5);
+    }
+
+    .section-divider__line {
+      flex: 1;
+      height: 1px;
+      background: var(--c-border);
+    }
+
+    .section-divider__text {
+      font-size: 0.6875rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--c-muted);
+      white-space: nowrap;
+    }
+
+    /* Discount code row */
+    .discount-row {
+      display: flex;
+      gap: var(--sp-3);
+      align-items: flex-start;
+    }
+
+    .discount-row .form-input {
+      flex: 1;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .discount-row .btn {
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+
+    /* Applied discount badge */
+    .discount-applied {
+      display: none;
+      align-items: center;
+      gap: var(--sp-2);
+      padding: var(--sp-2) var(--sp-3);
+      background: rgba(45,92,74,.12);
+      border: 1px solid rgba(45,92,74,.25);
+      border-radius: var(--r-md);
+      color: #5ab58a;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      margin-top: var(--sp-3);
+    }
+
+    .discount-applied.visible { display: flex; }
+
+    .discount-applied__remove {
+      margin-left: auto;
+      background: none;
+      border: none;
+      color: var(--c-muted);
+      cursor: pointer;
+      font-size: 1rem;
+      line-height: 1;
+      padding: 0 var(--sp-1);
+    }
+
+    .discount-applied__remove:hover { color: var(--c-red); }
+
+    /* Wallet address display */
+    .wallet-box {
+      background: var(--c-surface-ghost);
+      border: 1px solid var(--c-border);
+      border-radius: var(--r-md);
+      padding: var(--sp-4);
+    }
+
+    .wallet-box__label {
+      font-size: 0.6875rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--c-muted);
+      margin-bottom: var(--sp-2);
+    }
+
+    .wallet-box__address {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 0.875rem;
+      color: var(--c-copper);
+      word-break: break-all;
+      line-height: 1.5;
+      margin-bottom: var(--sp-3);
+    }
+
+    .wallet-box__copy {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--sp-2);
+      font-size: 0.8125rem;
+      color: var(--c-muted);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      font-family: var(--font-ui);
+      transition: color var(--t-fast) var(--ease);
+    }
+
+    .wallet-box__copy:hover { color: var(--c-copper); }
+    .wallet-box__copy.copied { color: #5ab58a; }
+
+    /* Order summary card */
+    .order-summary {
+      background: #16191E;
+      border: 1px solid var(--c-border);
+      border-radius: var(--r-lg);
+      overflow: hidden;
+      margin-bottom: var(--sp-5);
+    }
+
+    .order-summary__header {
+      padding: var(--sp-4) var(--sp-5);
+      border-bottom: 1px solid var(--c-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .order-summary__title {
+      font-family: var(--font-display);
+      font-size: 0.9375rem;
+      font-weight: 600;
+      color: var(--c-surface);
+    }
+
+    .order-summary__body {
+      padding: var(--sp-4) var(--sp-5);
+    }
+
+    .order-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-size: 0.875rem;
+      padding: var(--sp-2) 0;
+      color: var(--c-muted);
+    }
+
+    .order-row + .order-row {
+      border-top: 1px solid rgba(139,134,128,.1);
+    }
+
+    .order-row--total {
+      color: var(--c-surface);
+      font-weight: 700;
+      font-size: 1rem;
+      padding-top: var(--sp-3);
+      margin-top: var(--sp-1);
+      border-top: 1px solid var(--c-border) !important;
+    }
+
+    .order-row__value { color: var(--c-surface); font-weight: 600; }
+    .order-row--total .order-row__value { color: var(--c-copper); font-size: 1.125rem; }
+
+    .order-row__strike {
+      text-decoration: line-through;
+      color: var(--c-muted);
+      font-weight: 400;
+      font-size: 0.8125rem;
+      margin-right: var(--sp-2);
+    }
+
+    /* Reference input hint */
+    .ref-hint {
+      font-size: 0.75rem;
+      color: var(--c-muted);
+      line-height: 1.5;
+      margin-top: var(--sp-2);
+    }
+
+    /* Sticky submit bar */
+    .submit-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      background: rgba(15,17,21,.96);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-top: 1px solid var(--c-border);
+      padding: var(--sp-4) var(--sp-5) calc(var(--sp-4) + env(safe-area-inset-bottom));
+    }
+
+    /* No plans state */
+    #no-plans {
+      display: none;
+    }
+
+    /* Loading skeleton */
+    .skeleton {
+      background: linear-gradient(90deg,
+        rgba(255,255,255,.04) 25%,
+        rgba(255,255,255,.08) 50%,
+        rgba(255,255,255,.04) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: var(--r-md);
+    }
+
+    @keyframes shimmer {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    .skeleton-card {
+      height: 180px;
+      border-radius: var(--r-lg);
+      margin-bottom: var(--sp-4);
+    }
+
+    /* Success screen */
+    #success-screen {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      min-height: 60dvh;
+      padding: var(--sp-8) var(--sp-6);
+      gap: var(--sp-4);
+    }
+
+    #success-screen.visible { display: flex; }
+
+    .success-icon {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: rgba(45,92,74,.15);
+      border: 1.5px solid rgba(45,92,74,.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      margin-bottom: var(--sp-2);
+    }
+  </style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div class="loading-overlay" id="page-loading">
+  <div class="spinner spinner--lg"></div>
+</div>
+
+<!-- Top bar -->
+<header class="topbar">
+  <span class="topbar__logo">Now<span>Funded</span></span>
+  <a href="dashboard.html" class="btn btn--ghost btn--sm">Dashboard</a>
+</header>
+
+<!-- Main content -->
+<main class="main-content container" id="main-content" style="display:none;">
+
+  <!-- ── Success screen (shown after order submitted) ── -->
+  <div id="success-screen">
+    <div class="success-icon">✅</div>
+    <h2 style="font-family:var(--font-display);font-size:1.5rem;color:var(--c-surface);">Order submitted</h2>
+    <p class="text-muted" style="max-width:260px;line-height:1.6;">
+      Your payment reference has been received. We'll confirm your order and send your MT5 credentials shortly.
+    </p>
+    <a href="dashboard.html" class="btn btn--primary btn--lg mt-6" style="width:100%;max-width:320px;">
+      Go to Dashboard
+    </a>
+  </div>
+
+  <!-- ── Main marketplace content ── -->
+  <div id="market-content">
+
+    <!-- Page heading -->
+    <div class="stack stack--2 mt-4 mb-6">
+      <h1 style="font-size:1.625rem;">Choose a Challenge</h1>
+      <p class="text-muted text-sm">Select your account size to get started.</p>
+    </div>
+
+    <!-- Skeleton loaders -->
+    <div id="skeletons">
+      <div class="skeleton skeleton-card"></div>
+      <div class="skeleton skeleton-card"></div>
+      <div class="skeleton skeleton-card"></div>
+    </div>
+
+    <!-- Plan cards -->
+    <div class="plans-grid" id="plans-grid" style="display:none;"></div>
+
+    <!-- No plans fallback -->
+    <div class="empty-state" id="no-plans">
+      <div class="empty-state__icon">📭</div>
+      <p class="empty-state__title">No plans available</p>
+      <p class="empty-state__desc">Check back soon — new challenges are on the way.</p>
+    </div>
+
+    <!-- ── Discount code ── -->
+    <div class="section-divider">
+      <div class="section-divider__line"></div>
+      <span class="section-divider__text">Promo Code</span>
+      <div class="section-divider__line"></div>
+    </div>
+
+    <div class="stack stack--3">
+      <div class="discount-row">
+        <input
+          type="text"
+          class="form-input"
+          id="discount-input"
+          placeholder="ENTER CODE"
+          maxlength="32"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <button class="btn btn--ghost" id="btn-apply-code">Apply</button>
+      </div>
+
+      <div class="discount-applied" id="discount-applied">
+        <span id="discount-applied-text"></span>
+        <button class="discount-applied__remove" id="btn-remove-code" aria-label="Remove discount">✕</button>
+      </div>
+
+      <div class="form-error" id="discount-error" style="display:none;"></div>
+    </div>
+
+    <!-- ── Payment ── -->
+    <div class="section-divider">
+      <div class="section-divider__line"></div>
+      <span class="section-divider__text">Payment</span>
+      <div class="section-divider__line"></div>
+    </div>
+
+    <!-- Order summary -->
+    <div class="order-summary" id="order-summary" style="display:none;">
+      <div class="order-summary__header">
+        <span class="order-summary__title">Order Summary</span>
+        <span class="badge badge--pending" id="summary-status">Pending</span>
+      </div>
+      <div class="order-summary__body stack stack--2" id="summary-body"></div>
+    </div>
+
+    <!-- Wallet address -->
+    <div class="wallet-box mb-5" id="wallet-box" style="display:none;">
+      <div class="wallet-box__label">Send payment to</div>
+      <div class="wallet-box__address" id="wallet-address"></div>
+      <button class="wallet-box__copy" id="btn-copy-wallet">
+        <span>📋</span> <span id="copy-label">Copy address</span>
+      </button>
+    </div>
+
+    <!-- Transaction reference -->
+    <div class="stack stack--3" id="ref-section" style="display:none;">
+      <div class="form-group">
+        <label class="form-label" for="ref-input">Transaction Reference</label>
+        <input
+          type="text"
+          class="form-input"
+          id="ref-input"
+          placeholder="Paste your TX hash or reference"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <p class="ref-hint">
+          Send the exact amount to the wallet above, then paste your transaction hash or payment reference here before submitting.
+        </p>
+      </div>
+    </div>
+
+  </div><!-- /#market-content -->
+
+</main>
+
+<!-- Sticky submit bar -->
+<div class="submit-bar" id="submit-bar" style="display:none;">
+  <button class="btn btn--primary btn--full btn--lg" id="btn-submit" disabled>
+    Select a plan to continue
+  </button>
+</div>
+
+<script>
+  // ─── Telegram init ──────────────────────────────────────────────────────
+  const tg = window.Telegram?.WebApp;
+  if (tg) { tg.ready(); tg.expand(); tg.BackButton.show(); }
+  tg?.BackButton?.onClick(() => { window.location.href = 'dashboard.html'; });
+
+  const telegramId = tg?.initDataUnsafe?.user?.id ?? null;
+
+  // ─── GAS endpoint ───────────────────────────────────────────────────────
+  const GAS_URL = 'https://script.google.com/macros/s/AKfycbwepZNb-bkbUumA9ilxmswwohu3PRIKXN80lK0OoQQxESkU_oxpFrbnmWk97BPexh-j/exec'; // <-- paste your deployed GAS Web App URL here
+
+  // ─── State ──────────────────────────────────────────────────────────────
+  let plans        = [];
+  let selectedPlan = null;
+  let discount     = null;   // { code, percent } or null
+  let walletAddr   = '';
+  let submitting   = false;
+
+  // ─── DOM refs ───────────────────────────────────────────────────────────
+  const pageLoading    = document.getElementById('page-loading');
+  const mainContent    = document.getElementById('main-content');
+  const marketContent  = document.getElementById('market-content');
+  const successScreen  = document.getElementById('success-screen');
+  const skeletons      = document.getElementById('skeletons');
+  const plansGrid      = document.getElementById('plans-grid');
+  const noPlans        = document.getElementById('no-plans');
+  const discountInput  = document.getElementById('discount-input');
+  const btnApplyCode   = document.getElementById('btn-apply-code');
+  const btnRemoveCode  = document.getElementById('btn-remove-code');
+  const discountApplied= document.getElementById('discount-applied');
+  const discountAppliedText = document.getElementById('discount-applied-text');
+  const discountError  = document.getElementById('discount-error');
+  const orderSummary   = document.getElementById('order-summary');
+  const summaryBody    = document.getElementById('summary-body');
+  const walletBox      = document.getElementById('wallet-box');
+  const walletAddressEl= document.getElementById('wallet-address');
+  const btnCopyWallet  = document.getElementById('btn-copy-wallet');
+  const copyLabel      = document.getElementById('copy-label');
+  const refSection     = document.getElementById('ref-section');
+  const refInput       = document.getElementById('ref-input');
+  const submitBar      = document.getElementById('submit-bar');
+  const btnSubmit      = document.getElementById('btn-submit');
+
+  // ─── Boot ───────────────────────────────────────────────────────────────
+  async function init() {
+    try {
+      const res  = await gasPost({ action: 'getMarketplace', telegram_id: telegramId });
+      plans      = res.plans      || [];
+      walletAddr = res.wallet     || '';
+
+      skeletons.style.display = 'none';
+
+      if (plans.length === 0) {
+        noPlans.style.display = 'flex';
+      } else {
+        renderPlans();
+        plansGrid.style.display = 'flex';
+      }
+
+      if (walletAddr) {
+        walletAddressEl.textContent = walletAddr;
+      }
+
+    } catch (err) {
+      console.error('Init error:', err);
+      skeletons.style.display = 'none';
+      noPlans.style.display   = 'flex';
+    } finally {
+      pageLoading.style.display = 'none';
+      mainContent.style.display = 'block';
+      submitBar.style.display   = 'block';
+    }
+  }
+
+  // ─── Render plan cards ──────────────────────────────────────────────────
+  function renderPlans() {
+    plansGrid.innerHTML = '';
+    plans.forEach(plan => {
+      const card = document.createElement('div');
+      card.className = 'plan-card';
+      card.dataset.planId = plan.plan_id;
+      card.innerHTML = `
+        <span class="plan-card__tick" aria-hidden="true">✓</span>
+        <div class="plan-card__size text-display-md">$${formatNumber(plan.account_size)}</div>
+        <div class="plan-card__name">${escHtml(plan.name)}</div>
+        <div class="plan-card__price">
+          <span class="currency">$</span>${formatNumber(plan.price_usd)}
+        </div>
+        <div class="plan-card__stats">
+          <div class="plan-stat">
+            <div class="plan-stat__label">Phase 1 Target</div>
+            <div class="plan-stat__value">${plan.phase1_target}%</div>
+          </div>
+          <div class="plan-stat">
+            <div class="plan-stat__label">Phase 2 Target</div>
+            <div class="plan-stat__value">${plan.phase2_target}%</div>
+          </div>
+          <div class="plan-stat">
+            <div class="plan-stat__label">Max Drawdown</div>
+            <div class="plan-stat__value">${plan.max_drawdown}%</div>
+          </div>
+          <div class="plan-stat">
+            <div class="plan-stat__label">Payout Split</div>
+            <div class="plan-stat__value">${plan.payout_split_first}%</div>
+          </div>
+        </div>
+      `;
+      card.addEventListener('click', () => selectPlan(plan));
+      plansGrid.appendChild(card);
+    });
+  }
+
+  // ─── Select a plan ──────────────────────────────────────────────────────
+  function selectPlan(plan) {
+    selectedPlan = plan;
+
+    // Update card selection visuals
+    document.querySelectorAll('.plan-card').forEach(c => {
+      c.classList.toggle('plan-card--selected', c.dataset.planId == plan.plan_id);
+    });
+
+    tg?.HapticFeedback?.selectionChanged();
+    updateSummary();
+    updateSubmitBtn();
+
+    // Reveal payment section
+    walletBox.style.display   = walletAddr ? 'block' : 'none';
+    refSection.style.display  = 'block';
+    orderSummary.style.display= 'block';
+
+    // Scroll to summary
+    setTimeout(() => {
+      orderSummary.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 150);
+  }
+
+  // ─── Update order summary ───────────────────────────────────────────────
+  function updateSummary() {
+    if (!selectedPlan) return;
+
+    const basePrice    = parseFloat(selectedPlan.price_usd);
+    const discountAmt  = discount ? +(basePrice * discount.percent / 100).toFixed(2) : 0;
+    const finalPrice   = +(basePrice - discountAmt).toFixed(2);
+
+    let html = `
+      <div class="order-row">
+        <span>${escHtml(selectedPlan.name)} — $${formatNumber(selectedPlan.account_size)}</span>
+        <span class="order-row__value">$${formatNumber(basePrice)}</span>
+      </div>
+    `;
+
+    if (discount) {
+      html += `
+        <div class="order-row" style="color:#5ab58a;">
+          <span>Discount (${discount.code} · ${discount.percent}% off)</span>
+          <span>−$${formatNumber(discountAmt)}</span>
+        </div>
+      `;
+    }
+
+    html += `
+      <div class="order-row order-row--total">
+        <span>Total due</span>
+        <span class="order-row__value">
+          ${discount ? `<span class="order-row__strike">$${formatNumber(basePrice)}</span>` : ''}
+          $${formatNumber(finalPrice)}
+        </span>
+      </div>
+    `;
+
+    summaryBody.innerHTML = html;
+  }
+
+  // ─── Apply discount code ────────────────────────────────────────────────
+  btnApplyCode.addEventListener('click', async () => {
+    const code = discountInput.value.trim().toUpperCase();
+    if (!code) return;
+
+    discountError.style.display = 'none';
+    btnApplyCode.classList.add('btn--loading');
+    btnApplyCode.disabled = true;
+
+    try {
+      const res = await gasPost({ action: 'validateCode', code, telegram_id: telegramId });
+
+      if (res.valid) {
+        discount = { code, percent: res.discount_percent };
+        discountAppliedText.textContent = `${code} — ${res.discount_percent}% off`;
+        discountApplied.classList.add('visible');
+        discountInput.value = '';
+        discountInput.disabled = true;
+        btnApplyCode.style.display = 'none';
+        tg?.HapticFeedback?.notificationOccurred('success');
+        updateSummary();
+        updateSubmitBtn();
+      } else {
+        showDiscountError(res.error || 'Invalid or expired code.');
+        tg?.HapticFeedback?.notificationOccurred('error');
+      }
+
+    } catch (err) {
+      showDiscountError('Could not validate code. Try again.');
+    } finally {
+      btnApplyCode.classList.remove('btn--loading');
+      btnApplyCode.disabled = false;
+    }
+  });
+
+  btnRemoveCode.addEventListener('click', () => {
+    discount = null;
+    discountApplied.classList.remove('visible');
+    discountInput.disabled  = false;
+    btnApplyCode.style.display = '';
+    discountInput.value = '';
+    updateSummary();
+    updateSubmitBtn();
+  });
+
+  function showDiscountError(msg) {
+    discountError.textContent    = msg;
+    discountError.style.display  = 'block';
+    setTimeout(() => { discountError.style.display = 'none'; }, 4000);
+  }
+
+  // ─── Copy wallet address ────────────────────────────────────────────────
+  btnCopyWallet.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(walletAddr);
+      copyLabel.textContent = 'Copied!';
+      btnCopyWallet.classList.add('copied');
+      setTimeout(() => {
+        copyLabel.textContent = 'Copy address';
+        btnCopyWallet.classList.remove('copied');
+      }, 2500);
+      tg?.HapticFeedback?.notificationOccurred('success');
+    } catch {
+      copyLabel.textContent = 'Copy failed';
+    }
+  });
+
+  // ─── Submit bar state ───────────────────────────────────────────────────
+  refInput.addEventListener('input', updateSubmitBtn);
+
+  function updateSubmitBtn() {
+    const hasRef = refInput.value.trim().length > 3;
+
+    if (!selectedPlan) {
+      btnSubmit.disabled      = true;
+      btnSubmit.textContent   = 'Select a plan to continue';
+      return;
+    }
+    if (!hasRef) {
+      btnSubmit.disabled      = true;
+      btnSubmit.textContent   = 'Enter your transaction reference';
+      return;
+    }
+    btnSubmit.disabled    = false;
+    btnSubmit.textContent = 'Submit Order';
+  }
+
+  // ─── Submit order ───────────────────────────────────────────────────────
+  btnSubmit.addEventListener('click', async () => {
+    if (submitting || !selectedPlan) return;
+    const ref = refInput.value.trim();
+    if (!ref) return;
+
+    submitting = true;
+    btnSubmit.classList.add('btn--loading');
+    btnSubmit.disabled = true;
+
+    const basePrice   = parseFloat(selectedPlan.price_usd);
+    const discountAmt = discount ? +(basePrice * discount.percent / 100).toFixed(2) : 0;
+    const finalPrice  = +(basePrice - discountAmt).toFixed(2);
+
+    try {
+      const res = await gasPost({
+        action:           'submitOrder',
+        telegram_id:      telegramId,
+        plan_id:          selectedPlan.plan_id,
+        price_paid:       finalPrice,
+        discount_code:    discount?.code    || '',
+        discount_amount:  discountAmt,
+        payment_reference: ref
+      });
+
+      if (res.success) {
+        tg?.HapticFeedback?.notificationOccurred('success');
+        // Show success screen
+        marketContent.style.display  = 'none';
+        submitBar.style.display      = 'none';
+        successScreen.classList.add('visible');
+      } else {
+        throw new Error(res.error || 'Submission failed');
+      }
+
+    } catch (err) {
+      console.error('Submit error:', err);
+      alert('Something went wrong: ' + err.message + '\nPlease try again.');
+      btnSubmit.classList.remove('btn--loading');
+      btnSubmit.disabled = false;
+      submitting = false;
+    }
+  });
+
+  // ─── GAS helper ─────────────────────────────────────────────────────────
+  async function gasPost(body) {
+    if (!GAS_URL) throw new Error('GAS_URL not set');
+    const res  = await fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (data.error && !data.valid) throw new Error(data.error);
+    return data;
+  }
+
+  // ─── Utils ──────────────────────────────────────────────────────────────
+  function formatNumber(n) {
+    return Number(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // ─── Kick off ───────────────────────────────────────────────────────────
+  init();
+</script>
+</body>
+</html>

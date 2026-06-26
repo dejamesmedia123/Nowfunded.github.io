@@ -1,0 +1,279 @@
+/**
+ * support.gs
+ * ─────────────────────────────────────────────────────────────────────────
+ * Backend endpoints for support.html (trader support chat).
+ *
+ * Actions handled (routed from doPost in the main Code.gs / router):
+ *   - getSupportThread     : fetch the trader's thread + full message history
+ *   - startSupportThread   : create a new thread + opening message
+ *   - sendSupportMessage   : append a trader message to an existing thread
+ *
+ * Sheets touched: SupportThreads, SupportMessages, Users (lookup only)
+ * Notifications:  notifyAdminNewSupport (via notifications.gs)
+ * ─────────────────────────────────────────────────────────────────────────
+ */
+
+const SUPPORT_THREADS_SHEET  = 'SupportThreads';
+const SUPPORT_MESSAGES_SHEET = 'SupportMessages';
+const USERS_SHEET            = 'Users';
+
+/**
+ * Router entry point — call this from your main doPost(e) switch
+ * on e.g. `if (action === 'getSupportThread') return handleGetSupportThread(payload);`
+ */
+
+// ─────────────────────────────────────────────────────────────────────────
+// GET SUPPORT THREAD
+// ─────────────────────────────────────────────────────────────────────────
+function handleGetSupportThread(payload) {
+  const telegramId = String(payload.telegram_id || '');
+  if (!telegramId) return jsonError_('Missing telegram_id.');
+
+  const ss = getSpreadsheet_();
+  const thread = findLatestThreadForUser_(ss, telegramId);
+
+  if (!thread) {
+    return jsonSuccess_({ thread: null, messages: [] });
+  }
+
+  const messages = getMessagesForThread_(ss, thread.thread_id);
+
+  return jsonSuccess_({
+    thread: thread,
+    messages: messages,
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// START SUPPORT THREAD
+// ─────────────────────────────────────────────────────────────────────────
+function handleStartSupportThread(payload) {
+  const telegramId = String(payload.telegram_id || '');
+  if (!telegramId) return jsonError_('Missing telegram_id.');
+
+  const ss = getSpreadsheet_();
+
+  // Guard: don't allow a second open thread for the same trader
+  const existing = findLatestThreadForUser_(ss, telegramId);
+  if (existing && existing.status === 'open') {
+    const messages = getMessagesForThread_(ss, existing.thread_id);
+    return jsonSuccess_({ success: true, thread: existing, messages: messages });
+  }
+
+  const threadsSheet  = ss.getSheetByName(SUPPORT_THREADS_SHEET);
+  const messagesSheet = ss.getSheetByName(SUPPORT_MESSAGES_SHEET);
+
+  const now      = new Date().toISOString();
+  const threadId = 'TH-' + Utilities.getUuid().slice(0, 8).toUpperCase();
+  const openingMessage = (payload.message && String(payload.message).trim())
+    || 'Hi, I need help with my account.';
+
+  // Append new thread row
+  // Columns: thread_id, telegram_id, status, created_at, last_message_at
+  threadsSheet.appendRow([threadId, telegramId, 'open', now, now]);
+
+  // Append opening message
+  // Columns: message_id, thread_id, sender, content, created_at
+  const messageId = 'MSG-' + Utilities.getUuid().slice(0, 8).toUpperCase();
+  messagesSheet.appendRow([messageId, threadId, 'trader', openingMessage, now]);
+
+  // Notify admin
+  const username = lookupUsername_(ss, telegramId);
+  try {
+    notifyAdminNewSupport(threadId, username);
+  } catch (err) {
+    // Notification failure should never block the thread from being created
+    console.error('notifyAdminNewSupport failed: ' + err);
+  }
+
+  const thread = {
+    thread_id: threadId,
+    telegram_id: telegramId,
+    status: 'open',
+    created_at: now,
+    last_message_at: now,
+  };
+
+  const messages = [{
+    message_id: messageId,
+    thread_id: threadId,
+    sender: 'trader',
+    content: openingMessage,
+    created_at: now,
+  }];
+
+  return jsonSuccess_({ success: true, thread: thread, messages: messages });
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// SEND SUPPORT MESSAGE (trader → admin)
+// ─────────────────────────────────────────────────────────────────────────
+function handleSendSupportMessage(payload) {
+  const telegramId = String(payload.telegram_id || '');
+  const threadId    = String(payload.thread_id || '');
+  const content     = String(payload.content || '').trim();
+
+  if (!telegramId) return jsonError_('Missing telegram_id.');
+  if (!threadId)   return jsonError_('Missing thread_id.');
+  if (!content)    return jsonError_('Message cannot be empty.');
+
+  const ss = getSpreadsheet_();
+  const threadsSheet = ss.getSheetByName(SUPPORT_THREADS_SHEET);
+
+  const threadRow = findRowByValue_(threadsSheet, 'thread_id', threadId);
+  if (!threadRow) return jsonError_('Thread not found.');
+
+  const threadData = rowToObject_(threadsSheet, threadRow.rowIndex, threadRow.values);
+
+  // Ownership check
+  if (String(threadData.telegram_id) !== telegramId) {
+    return jsonError_('This thread does not belong to you.');
+  }
+
+  if (threadData.status !== 'open') {
+    return jsonError_('This conversation is closed.');
+  }
+
+  const messagesSheet = ss.getSheetByName(SUPPORT_MESSAGES_SHEET);
+  const now       = new Date().toISOString();
+  const messageId = 'MSG-' + Utilities.getUuid().slice(0, 8).toUpperCase();
+
+  messagesSheet.appendRow([messageId, threadId, 'trader', content, now]);
+
+  // Update last_message_at on the thread row — update by index, never overwrite headers
+  const lastMsgCol = getColumnIndex_(threadsSheet, 'last_message_at');
+  threadsSheet.getRange(threadRow.rowIndex, lastMsgCol).setValue(now);
+
+  const message = {
+    message_id: messageId,
+    thread_id: threadId,
+    sender: 'trader',
+    content: content,
+    created_at: now,
+  };
+
+  return jsonSuccess_({ success: true, message: message });
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────────────────────────
+
+/** Finds the most recent thread (by created_at) for a given trader. */
+function findLatestThreadForUser_(ss, telegramId) {
+  const sheet = ss.getSheetByName(SUPPORT_THREADS_SHEET);
+  const data  = sheet.getDataRange().getValues();
+  const headers = data[0];
+
+  let latest = null;
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const obj = headers.reduce((acc, h, idx) => { acc[h] = row[idx]; return acc; }, {});
+    if (String(obj.telegram_id) === telegramId) {
+      if (!latest || new Date(obj.created_at) > new Date(latest.created_at)) {
+        latest = normalizeThread_(obj);
+      }
+    }
+  }
+  return latest;
+}
+
+/** Returns all messages for a thread, ordered oldest → newest. */
+function getMessagesForThread_(ss, threadId) {
+  const sheet = ss.getSheetByName(SUPPORT_MESSAGES_SHEET);
+  const data  = sheet.getDataRange().getValues();
+  const headers = data[0];
+
+  const messages = [];
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const obj = headers.reduce((acc, h, idx) => { acc[h] = row[idx]; return acc; }, {});
+    if (String(obj.thread_id) === threadId) {
+      messages.push({
+        message_id: String(obj.message_id),
+        thread_id:  String(obj.thread_id),
+        sender:     String(obj.sender),
+        content:    String(obj.content),
+        created_at: normalizeDate_(obj.created_at),
+      });
+    }
+  }
+
+  messages.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+  return messages;
+}
+
+function normalizeThread_(obj) {
+  return {
+    thread_id:       String(obj.thread_id),
+    telegram_id:     String(obj.telegram_id),
+    status:          String(obj.status),
+    created_at:      normalizeDate_(obj.created_at),
+    last_message_at: normalizeDate_(obj.last_message_at),
+  };
+}
+
+function normalizeDate_(value) {
+  if (value instanceof Date) return value.toISOString();
+  return String(value);
+}
+
+function lookupUsername_(ss, telegramId) {
+  const sheet = ss.getSheetByName(USERS_SHEET);
+  const data  = sheet.getDataRange().getValues();
+  const headers = data[0];
+  const idCol  = headers.indexOf('telegram_id');
+  const userCol = headers.indexOf('username');
+
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][idCol]) === telegramId) {
+      return data[i][userCol] || ('user_' + telegramId);
+    }
+  }
+  return 'user_' + telegramId;
+}
+
+/** Finds a row by matching a column's value. Returns { rowIndex, values } or null. 1-indexed rowIndex for Range use. */
+function findRowByValue_(sheet, columnName, value) {
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0];
+  const col = headers.indexOf(columnName);
+  if (col === -1) return null;
+
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][col]) === String(value)) {
+      return { rowIndex: i + 1, values: data[i] };
+    }
+  }
+  return null;
+}
+
+function rowToObject_(sheet, rowIndex, values) {
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  return headers.reduce((acc, h, idx) => { acc[h] = values[idx]; return acc; }, {});
+}
+
+function getColumnIndex_(sheet, columnName) {
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const idx = headers.indexOf(columnName);
+  if (idx === -1) throw new Error('Column not found: ' + columnName);
+  return idx + 1; // 1-indexed for Range
+}
+
+/** Opens the spreadsheet via the Script Property — never hardcode the ID. */
+function getSpreadsheet_() {
+  const id = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
+  return SpreadsheetApp.openById(id);
+}
+
+function jsonSuccess_(obj) {
+  return ContentService
+    .createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function jsonError_(message) {
+  return ContentService
+    .createTextOutput(JSON.stringify({ success: false, error: message }))
+    .setMimeType(ContentService.MimeType.JSON);
+}

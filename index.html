@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NowFunded</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* ── Index-only styles ─────────────────────────────────── */
+
+    /* Hero */
+    .hero {
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: var(--sp-8) var(--sp-5);
+      background: radial-gradient(ellipse 80% 50% at 50% -10%,
+                  rgba(201,123,74,.18) 0%, transparent 65%);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Subtle grid overlay */
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(139,134,128,.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(139,134,128,.06) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+    }
+
+    .hero__logo {
+      font-family: var(--font-display);
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--c-surface);
+      letter-spacing: -0.01em;
+      margin-bottom: var(--sp-10);
+      position: relative;
+    }
+
+    .hero__logo span { color: var(--c-copper); }
+
+    .hero__eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--sp-2);
+      background: rgba(201,123,74,.12);
+      border: 1px solid rgba(201,123,74,.3);
+      border-radius: var(--r-pill);
+      padding: var(--sp-1) var(--sp-3);
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--c-copper);
+      margin-bottom: var(--sp-5);
+      position: relative;
+    }
+
+    .hero__heading {
+      font-family: var(--font-display);
+      font-size: clamp(2.25rem, 9vw, 4rem);
+      font-weight: 300;
+      letter-spacing: -0.025em;
+      line-height: 1.05;
+      color: var(--c-surface);
+      margin-bottom: var(--sp-5);
+      position: relative;
+    }
+
+    .hero__heading em {
+      font-style: normal;
+      color: var(--c-copper);
+    }
+
+    .hero__sub {
+      font-size: 1rem;
+      color: var(--c-muted);
+      line-height: 1.6;
+      max-width: 320px;
+      margin: 0 auto var(--sp-8);
+      position: relative;
+    }
+
+    .hero__cta {
+      position: relative;
+      width: 100%;
+      max-width: 320px;
+    }
+
+    /* Stats strip */
+    .stats-strip {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: var(--c-border);
+      border: 1px solid var(--c-border);
+      border-radius: var(--r-lg);
+      overflow: hidden;
+      margin-top: var(--sp-10);
+      width: 100%;
+      max-width: 360px;
+      position: relative;
+    }
+
+    .stat-cell {
+      background: var(--c-surface-ghost);
+      padding: var(--sp-4) var(--sp-3);
+      text-align: center;
+    }
+
+    .stat-cell__value {
+      font-family: var(--font-display);
+      font-size: 1.375rem;
+      font-weight: 400;
+      color: var(--c-surface);
+      letter-spacing: -0.02em;
+      line-height: 1;
+      margin-bottom: var(--sp-1);
+    }
+
+    .stat-cell__label {
+      font-size: 0.625rem;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--c-muted);
+    }
+
+    /* Phase ladder section */
+    .section {
+      padding: var(--sp-12) var(--sp-5);
+    }
+
+    .section-label {
+      font-size: 0.6875rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--c-copper);
+      margin-bottom: var(--sp-3);
+    }
+
+    .section-heading {
+      font-family: var(--font-display);
+      font-size: clamp(1.5rem, 6vw, 2.25rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+      color: var(--c-surface);
+      margin-bottom: var(--sp-4);
+    }
+
+    .section-body {
+      color: var(--c-muted);
+      font-size: 0.9375rem;
+      line-height: 1.6;
+      margin-bottom: var(--sp-8);
+    }
+
+    /* Status ladder */
+    .ladder {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      position: relative;
+    }
+
+    .ladder::before {
+      content: '';
+      position: absolute;
+      left: 19px;
+      top: 20px;
+      bottom: 20px;
+      width: 2px;
+      background: linear-gradient(to bottom,
+        var(--c-copper) 0%,
+        rgba(201,123,74,.3) 60%,
+        rgba(139,134,128,.15) 100%);
+    }
+
+    .ladder-step {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--sp-4);
+      padding: var(--sp-4) 0;
+      position: relative;
+    }
+
+    .ladder-step__dot {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      flex-shrink: 0;
+      z-index: 1;
+    }
+
+    .ladder-step--active .ladder-step__dot {
+      background: var(--c-copper);
+      box-shadow: 0 0 0 6px rgba(201,123,74,.15);
+    }
+
+    .ladder-step--passed .ladder-step__dot {
+      background: var(--c-green);
+      box-shadow: 0 0 0 6px rgba(45,92,74,.15);
+    }
+
+    .ladder-step--locked .ladder-step__dot {
+      background: rgba(139,134,128,.12);
+      border: 1.5px solid var(--c-border);
+    }
+
+    .ladder-step__content {
+      padding-top: var(--sp-2);
+    }
+
+    .ladder-step__title {
+      font-family: var(--font-display);
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--c-surface);
+      margin-bottom: var(--sp-1);
+    }
+
+    .ladder-step--locked .ladder-step__title {
+      color: var(--c-muted);
+    }
+
+    .ladder-step__desc {
+      font-size: 0.8125rem;
+      color: var(--c-muted);
+      line-height: 1.5;
+    }
+
+    /* Feature cards */
+    .feature-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--sp-3);
+    }
+
+    .feature-card {
+      background: var(--c-surface-ghost);
+      border: 1px solid var(--c-border);
+      border-radius: var(--r-lg);
+      padding: var(--sp-4);
+    }
+
+    .feature-card__icon {
+      font-size: 1.375rem;
+      margin-bottom: var(--sp-3);
+    }
+
+    .feature-card__title {
+      font-family: var(--font-display);
+      font-size: 0.9375rem;
+      font-weight: 600;
+      color: var(--c-surface);
+      margin-bottom: var(--sp-1);
+    }
+
+    .feature-card__body {
+      font-size: 0.75rem;
+      color: var(--c-muted);
+      line-height: 1.5;
+    }
+
+    /* Payout split card */
+    .split-card {
+      background: var(--c-surface-ghost);
+      border: 1px solid var(--c-border);
+      border-radius: var(--r-lg);
+      padding: var(--sp-5);
+    }
+
+    .split-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--sp-3) 0;
+    }
+
+    .split-row + .split-row {
+      border-top: 1px solid var(--c-border);
+    }
+
+    .split-row__label {
+      font-size: 0.8125rem;
+      color: var(--c-muted);
+    }
+
+    .split-row__value {
+      font-family: var(--font-display);
+      font-size: 1.25rem;
+      font-weight: 400;
+      color: var(--c-copper);
+      letter-spacing: -0.01em;
+    }
+
+    /* Bottom CTA bar */
+    .bottom-bar {
+      position: sticky;
+      bottom: 0;
+      padding: var(--sp-4) var(--sp-5) calc(var(--sp-4) + env(safe-area-inset-bottom));
+      background: rgba(15,17,21,.94);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-top: 1px solid var(--c-border);
+    }
+
+    /* Loading overlay */
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: var(--c-bg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: var(--sp-4);
+      z-index: 1000;
+      color: var(--c-muted);
+      font-size: 0.875rem;
+      transition: opacity 0.3s ease;
+    }
+
+    .loading-overlay--hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── LOADING OVERLAY ──────────────────────────────────────── -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="spinner spinner--lg"></div>
+    <span id="loadingMsg">Loading…</span>
+  </div>
+
+  <!-- ── TOAST CONTAINER ──────────────────────────────────────── -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       PAGE CONTENT (visible once routing check runs)
+  ══════════════════════════════════════════════════════════ -->
+  <div id="pageContent" style="display:none">
+
+    <!-- ── HERO ──────────────────────────────────────────────── -->
+    <section class="hero">
+      <div class="hero__logo">Now<span>Funded</span></div>
+
+      <div class="hero__eyebrow">
+        <span>🟢</span> Prop Trading · Telegram Mini App
+      </div>
+
+      <h1 class="hero__heading">
+        Get <em>funded.</em><br>Keep trading.
+      </h1>
+
+      <p class="hero__sub">
+        Pass a two-phase challenge, receive your funded account,
+        and earn up to <strong style="color:var(--c-surface)">80% of profits</strong> — all managed inside Telegram.
+      </p>
+
+      <div class="hero__cta">
+        <button class="btn btn--primary btn--full btn--lg" id="heroStartBtn">
+          Start Your Challenge →
+        </button>
+      </div>
+
+      <!-- Stats strip -->
+      <div class="stats-strip">
+        <div class="stat-cell">
+          <div class="stat-cell__value" id="statAccounts">—</div>
+          <div class="stat-cell__label">Accounts Issued</div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-cell__value" id="statPayouts">—</div>
+          <div class="stat-cell__label">Payouts Paid</div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-cell__value" id="statSplit">80%</div>
+          <div class="stat-cell__label">Profit Split</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── HOW IT WORKS ───────────────────────────────────────── -->
+    <section class="section">
+      <div class="container">
+        <p class="section-label">How it works</p>
+        <h2 class="section-heading">Four steps to a funded account</h2>
+        <p class="section-body">
+          No subscriptions. No hidden fees. Pass the challenge, trade the funded account, get paid.
+        </p>
+
+        <div class="ladder">
+          <div class="ladder-step ladder-step--passed">
+            <div class="ladder-step__dot">✓</div>
+            <div class="ladder-step__content">
+              <p class="ladder-step__title">Purchase a Plan</p>
+              <p class="ladder-step__desc">Choose an account size from the Marketplace, pay once in crypto, and receive your Phase 1 MT5 credentials.</p>
+            </div>
+          </div>
+
+          <div class="ladder-step ladder-step--active">
+            <div class="ladder-step__dot">1</div>
+            <div class="ladder-step__content">
+              <p class="ladder-step__title">Phase 1 Challenge</p>
+              <p class="ladder-step__desc">Hit the profit target without breaching max drawdown. Pass and move to Phase 2.</p>
+            </div>
+          </div>
+
+          <div class="ladder-step ladder-step--active">
+            <div class="ladder-step__dot">2</div>
+            <div class="ladder-step__content">
+              <p class="ladder-step__title">Phase 2 Verification</p>
+              <p class="ladder-step__desc">A second, lower profit target confirms your consistency. Pass and you're funded.</p>
+            </div>
+          </div>
+
+          <div class="ladder-step ladder-step--locked">
+            <div class="ladder-step__dot">💰</div>
+            <div class="ladder-step__content">
+              <p class="ladder-step__title">Funded & Scaled</p>
+              <p class="ladder-step__desc">Trade your funded account. After two payouts you unlock a scale-up to a larger account.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── FEATURES ───────────────────────────────────────────── -->
+    <section class="section" style="padding-top:0">
+      <div class="container">
+        <p class="section-label">Platform</p>
+        <h2 class="section-heading">Everything inside Telegram</h2>
+        <p class="section-body">
+          No separate app to download. Your challenge, dashboard, payouts, and support — all here.
+        </p>
+
+        <div class="feature-grid">
+          <div class="feature-card">
+            <div class="feature-card__icon">📊</div>
+            <p class="feature-card__title">Live Dashboard</p>
+            <p class="feature-card__body">Track profit, drawdown, and phase progress in real time.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-card__icon">🔔</div>
+            <p class="feature-card__title">Instant Alerts</p>
+            <p class="feature-card__body">Credentials, phase updates, and payouts delivered straight to your Telegram.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-card__icon">⭐</div>
+            <p class="feature-card__title">Points & Rewards</p>
+            <p class="feature-card__body">Earn points through referrals and redeem them for discounts on future challenges.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-card__icon">💬</div>
+            <p class="feature-card__title">Built-in Support</p>
+            <p class="feature-card__body">Open a support thread and chat with our team without leaving the app.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── PAYOUT SPLIT ───────────────────────────────────────── -->
+    <section class="section" style="padding-top:0">
+      <div class="container">
+        <p class="section-label">Payouts</p>
+        <h2 class="section-heading">Keep the majority of what you earn</h2>
+        <p class="section-body">
+          Your split improves after your first payout. There is no lock-up period — request a payout whenever you're ready.
+        </p>
+
+        <div class="split-card">
+          <div class="split-row">
+            <span class="split-row__label">1st Payout Split</span>
+            <span class="split-row__value" id="splitFirst">—%</span>
+          </div>
+          <div class="split-row">
+            <span class="split-row__label">2nd Payout & Beyond</span>
+            <span class="split-row__value" id="splitSecond">—%</span>
+          </div>
+          <div class="split-row">
+            <span class="split-row__label">After 2nd Payout</span>
+            <span class="split-row__value" style="color:var(--c-green);font-size:1rem">Scale-Up 🚀</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── RULES SUMMARY ─────────────────────────────────────── -->
+    <section class="section" style="padding-top:0">
+      <div class="container">
+        <p class="section-label">Rules</p>
+        <h2 class="section-heading">Simple, clear rules</h2>
+
+        <div class="stack stack--3">
+          <div class="card card--dark">
+            <div class="row row--gap-3" style="align-items:flex-start">
+              <span style="font-size:1.25rem">📉</span>
+              <div>
+                <p style="font-weight:600;font-size:.9375rem;margin-bottom:var(--sp-1)">Max Drawdown</p>
+                <p class="text-muted text-sm">Account-level, end-of-day only. No daily drawdown limit. Exceed it and the account is breached.</p>
+              </div>
+            </div>
+          </div>
+          <div class="card card--dark">
+            <div class="row row--gap-3" style="align-items:flex-start">
+              <span style="font-size:1.25rem">🎯</span>
+              <div>
+                <p style="font-weight:600;font-size:.9375rem;margin-bottom:var(--sp-1)">Profit Targets</p>
+                <p class="text-muted text-sm">Phase 1 has a higher target than Phase 2. Both are clearly shown on every plan card.</p>
+              </div>
+            </div>
+          </div>
+          <div class="card card--dark">
+            <div class="row row--gap-3" style="align-items:flex-start">
+              <span style="font-size:1.25rem">💳</span>
+              <div>
+                <p style="font-weight:600;font-size:.9375rem;margin-bottom:var(--sp-1)">Crypto Payments Only</p>
+                <p class="text-muted text-sm">All challenge fees and payouts are processed in crypto. Manual admin-confirmed payments.</p>
+              </div>
+            </div>
+          </div>
+          <div class="card card--dark">
+            <div class="row row--gap-3" style="align-items:flex-start">
+              <span style="font-size:1.25rem">⚡</span>
+              <div>
+                <p style="font-weight:600;font-size:.9375rem;margin-bottom:var(--sp-1)">No Resets</p>
+                <p class="text-muted text-sm">Breaching at Phase 1 or 2 means the fee is lost. Start a new challenge from the Marketplace anytime.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── REFERRAL CTA ───────────────────────────────────────── -->
+    <section class="section" style="padding-top:0;padding-bottom:var(--sp-16)">
+      <div class="container">
+        <div class="card" style="text-align:center">
+          <div style="font-size:2rem;margin-bottom:var(--sp-3)">🤝</div>
+          <h2 style="font-family:var(--font-display);font-size:1.25rem;font-weight:600;color:var(--c-bg);margin-bottom:var(--sp-2)">Refer a Trader, Earn Points</h2>
+          <p style="font-size:.875rem;color:var(--c-muted);margin-bottom:var(--sp-5)">
+            Share your unique referral link. When your friend's payment is confirmed, points land in your account — redeemable for discounts.
+          </p>
+          <button class="btn btn--secondary btn--full" id="referBtn">
+            View My Referral Link
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /pageContent -->
+
+  <!-- ── STICKY BOTTOM BAR ────────────────────────────────────── -->
+  <div class="bottom-bar" id="bottomBar" style="display:none">
+    <button class="btn btn--primary btn--full" id="bottomStartBtn">
+      Get Started — Browse Plans →
+    </button>
+  </div>
+
+  <script>
+    // ─────────────────────────────────────────────────────────────
+    // CONFIG — replace with your deployed GAS Web App URL
+    // ─────────────────────────────────────────────────────────────
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbyZkV9_eGC0ExHamd0uj2rUJSC7ebkcVw1GxNA_7FKgopAkgwR70PmmGVzvfVwHMfgO/exec';
+
+    // ─────────────────────────────────────────────────────────────
+    // BOOT
+    // ─────────────────────────────────────────────────────────────
+    (async function boot() {
+      const tg = window.Telegram?.WebApp;
+      if (tg) { tg.ready(); tg.expand(); }
+
+      const user       = tg?.initDataUnsafe?.user;
+      const telegramId = user?.id ? String(user.id) : null;
+      const username   = user?.username   || '';
+      const firstName  = user?.first_name || '';
+
+      // 1. Load landing page content in parallel while we check the user
+      loadPublicStats();
+
+      if (!telegramId) {
+        // Not inside Telegram — show landing page as a preview
+        showPage();
+        return;
+      }
+
+      // 2. Check / register user
+      setLoadingMsg('Checking your account…');
+      let result;
+      try {
+        const res = await fetch(GAS_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action:      'indexBoot',
+            telegram_id: telegramId,
+            username,
+            first_name:  firstName,
+          }),
+        });
+        result = await res.json();
+      } catch (err) {
+        showPage();
+        showToast('error', '⚠️', 'Could not connect to the server. Browse as a guest.');
+        return;
+      }
+
+      if (!result.success) {
+        showPage();
+        showToast('error', '⚠️', result.error || 'Something went wrong.');
+        return;
+      }
+
+      // 3. Route returning users immediately; show landing for new users
+      if (result.route === 'dashboard') {
+        setLoadingMsg('Opening your dashboard…');
+        window.location.href = 'dashboard.html';
+        return;
+      }
+
+      if (result.route === 'onboarding') {
+        setLoadingMsg('Setting things up…');
+        window.location.href = 'onboarding.html';
+        return;
+      }
+
+      // Fallback — show landing
+      showPage();
+    })();
+
+    // ─────────────────────────────────────────────────────────────
+    // LOAD PUBLIC STATS from GAS (non-blocking)
+    // ─────────────────────────────────────────────────────────────
+    async function loadPublicStats() {
+      try {
+        const res  = await fetch(GAS_URL + '?action=publicStats');
+        const data = await res.json();
+        if (data.accounts_issued) {
+          document.getElementById('statAccounts').textContent = data.accounts_issued;
+        }
+        if (data.payouts_paid) {
+          document.getElementById('statPayouts').textContent = '$' + data.payouts_paid;
+        }
+        if (data.split_first) {
+          document.getElementById('splitFirst').textContent  = data.split_first + '%';
+        }
+        if (data.split_second) {
+          document.getElementById('splitSecond').textContent = data.split_second + '%';
+        }
+      } catch (_) {
+        // Silently ignore — stats are cosmetic
+        document.getElementById('statAccounts').textContent = '500+';
+        document.getElementById('statPayouts').textContent  = '$50k+';
+        document.getElementById('splitFirst').textContent   = '70%';
+        document.getElementById('splitSecond').textContent  = '80%';
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // UI HELPERS
+    // ─────────────────────────────────────────────────────────────
+    function showPage() {
+      document.getElementById('loadingOverlay').classList.add('loading-overlay--hidden');
+      setTimeout(() => {
+        document.getElementById('loadingOverlay').style.display = 'none';
+        document.getElementById('pageContent').style.display = 'block';
+        document.getElementById('bottomBar').style.display   = 'block';
+      }, 300);
+      bindButtons();
+      bindScrollSpy();
+    }
+
+    function setLoadingMsg(msg) {
+      document.getElementById('loadingMsg').textContent = msg;
+    }
+
+    function bindButtons() {
+      const goToMarketplace = () => { window.location.href = 'marketplace.html'; };
+      const goToPoints      = () => { window.location.href = 'points.html'; };
+
+      document.getElementById('heroStartBtn').addEventListener('click', goToMarketplace);
+      document.getElementById('bottomStartBtn').addEventListener('click', goToMarketplace);
+      document.getElementById('referBtn').addEventListener('click', goToPoints);
+    }
+
+    // Show sticky bottom bar only after hero scrolls out of view
+    function bindScrollSpy() {
+      const hero    = document.querySelector('.hero');
+      const bar     = document.getElementById('bottomBar');
+      const observer = new IntersectionObserver(
+        ([entry]) => { bar.style.display = entry.isIntersecting ? 'none' : 'block'; },
+        { threshold: 0.1 }
+      );
+      if (hero) observer.observe(hero);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // TOAST
+    // ─────────────────────────────────────────────────────────────
+    function showToast(type, icon, msg) {
+      const container = document.getElementById('toastContainer');
+      const el = document.createElement('div');
+      el.className = `toast toast--${type}`;
+      el.innerHTML = `<span class="toast__icon">${icon}</span><span class="toast__msg">${msg}</span>`;
+      container.appendChild(el);
+      setTimeout(() => {
+        el.classList.add('toast--exit');
+        setTimeout(() => el.remove(), 300);
+      }, 4000);
+    }
+  </script>
+</body>
+</html>

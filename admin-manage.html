@@ -1,0 +1,1154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NowFunded Admin — Setup & Management</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* ── admin-manage-specific styles ── */
+
+    /* Mobile sidebar toggle */
+    .admin-menu-btn {
+      display: none;
+      background: none;
+      border: 1px solid var(--c-border);
+      color: var(--c-surface);
+      border-radius: var(--r-md);
+      padding: var(--sp-2) var(--sp-3);
+      cursor: pointer;
+      font-size: 1rem;
+    }
+
+    @media (max-width: 860px) {
+      .admin-menu-btn { display: inline-flex; }
+      .admin-sidebar-backdrop {
+        position: fixed; inset: 0; z-index: 199;
+        background: rgba(0,0,0,.5);
+        opacity: 0; pointer-events: none;
+        transition: opacity var(--t-base) var(--ease);
+      }
+      .admin-sidebar-backdrop--open { opacity: 1; pointer-events: auto; }
+    }
+
+    /* View visibility — only one view shown at a time */
+    .admin-view { display: none; }
+    .admin-view--active { display: block; }
+
+    /* Switch-app link in sidebar footer */
+    .admin-sidebar__footer {
+      margin-top: auto;
+      padding: var(--sp-4);
+      border-top: 1px solid var(--c-border);
+    }
+
+    .admin-switch-link {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+      font-size: 0.8125rem;
+      color: var(--c-muted);
+      padding: var(--sp-2) var(--sp-2);
+      border-radius: var(--r-md);
+      transition: color var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
+    }
+    .admin-switch-link:hover { color: var(--c-copper); background: var(--c-surface-ghost); text-decoration: none; }
+
+    .admin-logout-link {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+      font-size: 0.8125rem;
+      color: var(--c-muted);
+      padding: var(--sp-2) var(--sp-2);
+      border-radius: var(--r-md);
+      cursor: pointer;
+      background: none;
+      border: none;
+      width: 100%;
+      text-align: left;
+      transition: color var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
+    }
+    .admin-logout-link:hover { color: var(--c-red); background: var(--c-surface-ghost); }
+
+    /* Plan / Code cards grid (admin-card based) */
+    .admin-card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: var(--sp-4);
+      margin-bottom: var(--sp-6);
+    }
+
+    .plan-edit-card .admin-card__header { margin-bottom: var(--sp-3); }
+
+    .plan-edit-card__size {
+      font-family: var(--font-display);
+      font-size: 1.375rem;
+      font-weight: 400;
+      color: var(--c-surface);
+    }
+
+    .plan-meta-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8125rem;
+      color: var(--c-muted);
+      padding: var(--sp-1) 0;
+    }
+
+    .plan-meta-row__value { color: var(--c-surface); font-weight: 600; }
+
+    .plan-edit-card__footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: var(--sp-4);
+      padding-top: var(--sp-3);
+      border-top: 1px solid var(--c-border);
+    }
+
+    /* User detail panel */
+    .user-detail-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: var(--sp-12) var(--sp-6);
+      color: var(--c-muted);
+      gap: var(--sp-2);
+    }
+
+    .user-detail-header {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-3);
+      margin-bottom: var(--sp-5);
+    }
+
+    .user-avatar {
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      background: rgba(201,123,74,.15);
+      border: 1.5px solid rgba(201,123,74,.3);
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-display);
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: var(--c-copper);
+      flex-shrink: 0;
+    }
+
+    .user-detail-name {
+      font-family: var(--font-display);
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: var(--c-surface);
+    }
+
+    .user-detail-sub { font-size: 0.8125rem; color: var(--c-muted); }
+
+    .user-stat-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--sp-3);
+      margin-bottom: var(--sp-6);
+    }
+
+    .user-detail-section { margin-bottom: var(--sp-6); }
+
+    .user-detail-section__title {
+      font-size: 0.6875rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--c-muted);
+      margin-bottom: var(--sp-3);
+    }
+
+    /* Settings form layout */
+    .settings-form {
+      max-width: 560px;
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-5);
+    }
+
+    .settings-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--sp-4);
+      padding: var(--sp-4);
+      background: #141619;
+      border: 1px solid var(--c-border);
+      border-radius: var(--r-md);
+    }
+
+    .settings-row__label {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--c-surface);
+      margin-bottom: 2px;
+    }
+
+    .settings-row__hint { font-size: 0.75rem; color: var(--c-muted); }
+
+    .settings-row .form-input { max-width: 220px; }
+
+    /* Skeleton rows for tables while loading */
+    .table-skeleton-row td {
+      padding: var(--sp-4);
+    }
+    .skeleton-bar {
+      height: 14px;
+      border-radius: 4px;
+      background: linear-gradient(90deg,
+        rgba(255,255,255,.04) 25%, rgba(255,255,255,.08) 50%, rgba(255,255,255,.04) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+    }
+    @keyframes shimmer {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    .modal__footer {
+      display: flex;
+      gap: var(--sp-3);
+      margin-top: var(--sp-6);
+    }
+    .modal__footer .btn { flex: 1; }
+  </style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div class="loading-overlay" id="page-loading">
+  <div class="spinner spinner--lg"></div>
+</div>
+
+<!-- Mobile sidebar backdrop -->
+<div class="admin-sidebar-backdrop" id="sidebar-backdrop"></div>
+
+<div class="admin-shell" id="admin-shell" style="display:none;">
+
+  <!-- ── Sidebar ── -->
+  <aside class="admin-sidebar" id="admin-sidebar">
+    <div class="admin-sidebar__logo">Now<span>Funded</span></div>
+
+    <div class="admin-sidebar__section-label">Setup &amp; Management</div>
+    <nav>
+      <a class="admin-nav__item admin-nav__item--active" data-route="plans">
+        <span class="admin-nav__icon">📋</span> Plans
+      </a>
+      <a class="admin-nav__item" data-route="codes">
+        <span class="admin-nav__icon">🎟️</span> Discount Codes
+      </a>
+      <a class="admin-nav__item" data-route="users">
+        <span class="admin-nav__icon">👤</span> Users
+      </a>
+      <a class="admin-nav__item" data-route="settings">
+        <span class="admin-nav__icon">⚙️</span> Settings
+      </a>
+    </nav>
+
+    <div class="admin-sidebar__footer">
+      <a class="admin-switch-link" href="admin-ops.html">
+        <span>⇄</span> Switch to Daily Ops
+      </a>
+      <button class="admin-logout-link" id="btn-logout">
+        <span>⏏</span> Log out
+      </button>
+    </div>
+  </aside>
+
+  <!-- ── Main ── -->
+  <main class="admin-main">
+    <header class="admin-topbar">
+      <div class="row row--gap-3">
+        <button class="admin-menu-btn" id="btn-menu" aria-label="Open menu">☰</button>
+        <span class="admin-topbar__title" id="topbar-title">Plans</span>
+      </div>
+    </header>
+
+    <div class="admin-page">
+
+      <!-- ════════════════════════ PLANS VIEW ════════════════════════ -->
+      <section class="admin-view admin-view--active" id="view-plans">
+        <div class="row row--between mb-6">
+          <p class="text-muted text-sm">Create, edit, and toggle the challenge plans traders can purchase.</p>
+          <button class="btn btn--primary btn--sm" id="btn-new-plan">+ New Plan</button>
+        </div>
+
+        <div id="plans-skeleton" class="admin-card-grid">
+          <div class="admin-card"><div class="skeleton-bar" style="width:60%;margin-bottom:12px;"></div><div class="skeleton-bar" style="width:90%;"></div></div>
+          <div class="admin-card"><div class="skeleton-bar" style="width:60%;margin-bottom:12px;"></div><div class="skeleton-bar" style="width:90%;"></div></div>
+          <div class="admin-card"><div class="skeleton-bar" style="width:60%;margin-bottom:12px;"></div><div class="skeleton-bar" style="width:90%;"></div></div>
+        </div>
+
+        <div class="admin-card-grid" id="plans-grid" style="display:none;"></div>
+
+        <div class="empty-state" id="plans-empty" style="display:none;">
+          <div class="empty-state__icon">📋</div>
+          <p class="empty-state__title">No plans yet</p>
+          <p class="empty-state__desc">Create your first challenge plan to make it available in the Marketplace.</p>
+        </div>
+      </section>
+
+      <!-- ════════════════════════ CODES VIEW ════════════════════════ -->
+      <section class="admin-view" id="view-codes">
+        <div class="row row--between mb-4">
+          <p class="text-muted text-sm">Manage promo codes and review points-shop redemption codes.</p>
+          <button class="btn btn--primary btn--sm" id="btn-new-code">+ New Promo Code</button>
+        </div>
+
+        <div class="filter-bar">
+          <select class="form-select" id="codes-type-filter">
+            <option value="all">All types</option>
+            <option value="promo">Promo only</option>
+            <option value="points_shop">Points shop only</option>
+          </select>
+        </div>
+
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Type</th>
+                <th>Discount</th>
+                <th>Uses</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="codes-tbody">
+              <tr class="table-skeleton-row"><td colspan="7"><div class="skeleton-bar"></div></td></tr>
+              <tr class="table-skeleton-row"><td colspan="7"><div class="skeleton-bar"></div></td></tr>
+              <tr class="table-skeleton-row"><td colspan="7"><div class="skeleton-bar"></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="empty-state" id="codes-empty" style="display:none;">
+          <div class="empty-state__icon">🎟️</div>
+          <p class="empty-state__title">No discount codes</p>
+          <p class="empty-state__desc">Create a promo code to offer traders a discount at checkout.</p>
+        </div>
+      </section>
+
+      <!-- ════════════════════════ USERS VIEW ════════════════════════ -->
+      <section class="admin-view" id="view-users">
+        <div class="admin-two-col">
+
+          <!-- Left: search + results -->
+          <div>
+            <div class="filter-bar" style="border-bottom:none;margin-bottom:var(--sp-4);">
+              <input
+                type="text"
+                class="form-input form-input--light"
+                id="user-search-input"
+                placeholder="Search by telegram_id or username…"
+                style="max-width:340px;"
+              />
+              <button class="btn btn--secondary btn--sm" id="btn-user-search">Search</button>
+            </div>
+
+            <div class="table-wrap">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Username</th>
+                    <th>Telegram ID</th>
+                    <th>Joined</th>
+                    <th>Points</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="users-tbody">
+                  <!-- search results injected here -->
+                </tbody>
+              </table>
+            </div>
+
+            <div class="empty-state" id="users-empty">
+              <div class="empty-state__icon">🔍</div>
+              <p class="empty-state__title">Search for a trader</p>
+              <p class="empty-state__desc">Enter a Telegram ID or username above to look up their account.</p>
+            </div>
+          </div>
+
+          <!-- Right: detail panel -->
+          <div class="admin-card" id="user-detail-panel">
+            <div class="user-detail-empty" id="user-detail-empty">
+              <span style="font-size:2rem;opacity:.4;">👤</span>
+              <p>Select a user to view full details</p>
+            </div>
+
+            <div id="user-detail-content" style="display:none;">
+              <div class="user-detail-header">
+                <div class="user-avatar" id="ud-avatar">?</div>
+                <div>
+                  <div class="user-detail-name" id="ud-name">—</div>
+                  <div class="user-detail-sub" id="ud-id">—</div>
+                </div>
+              </div>
+
+              <div class="user-stat-row">
+                <div class="stat-tile">
+                  <div class="stat-tile__label">Points</div>
+                  <div class="stat-tile__value" id="ud-points">0</div>
+                </div>
+                <div class="stat-tile">
+                  <div class="stat-tile__label">Referral Code</div>
+                  <div class="stat-tile__value" id="ud-refcode" style="font-size:1rem;">—</div>
+                </div>
+                <div class="stat-tile">
+                  <div class="stat-tile__label">Referred By</div>
+                  <div class="stat-tile__value" id="ud-referredby" style="font-size:1rem;">—</div>
+                </div>
+              </div>
+
+              <div class="user-detail-section">
+                <div class="user-detail-section__title">Orders</div>
+                <div id="ud-orders" class="stack stack--2"></div>
+              </div>
+
+              <div class="user-detail-section">
+                <div class="user-detail-section__title">Accounts</div>
+                <div id="ud-accounts" class="stack stack--2"></div>
+              </div>
+
+              <div class="user-detail-section">
+                <div class="user-detail-section__title">Points Ledger</div>
+                <div id="ud-ledger" class="stack stack--2"></div>
+              </div>
+
+              <div class="user-detail-section">
+                <div class="user-detail-section__title">Referrals</div>
+                <div id="ud-referrals" class="stack stack--2"></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ════════════════════════ SETTINGS VIEW ════════════════════════ -->
+      <section class="admin-view" id="view-settings">
+        <p class="text-muted text-sm mb-6">Global settings used across the trader app and notifications.</p>
+
+        <form class="settings-form" id="settings-form">
+
+          <div class="settings-row">
+            <div>
+              <div class="settings-row__label">Points per Referral</div>
+              <div class="settings-row__hint">Points awarded when a referred trader's payment is confirmed.</div>
+            </div>
+            <input type="number" class="form-input form-input--light" id="set-points-per-referral" min="0" step="1" />
+          </div>
+
+          <div class="settings-row">
+            <div>
+              <div class="settings-row__label">Blown Account Refund</div>
+              <div class="settings-row__hint">When on, blown funded/scaled accounts get 35% of the fee refunded as points.</div>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" class="toggle__input" id="set-blown-refund-toggle" />
+              <span class="toggle__track"></span>
+            </label>
+          </div>
+
+          <div class="settings-row">
+            <div>
+              <div class="settings-row__label">Admin Telegram ID</div>
+              <div class="settings-row__hint">Where Telegram bot notifications for new orders/payouts/support are sent.</div>
+            </div>
+            <input type="text" class="form-input form-input--light" id="set-admin-telegram-id" />
+          </div>
+
+          <div class="settings-row" style="align-items:flex-start;">
+            <div>
+              <div class="settings-row__label">Wallet Address</div>
+              <div class="settings-row__hint">Crypto wallet shown to traders at checkout for challenge payments.</div>
+            </div>
+            <input type="text" class="form-input form-input--light" id="set-wallet-address" style="max-width:260px;font-family:'SF Mono','Fira Code',monospace;font-size:0.8125rem;" />
+          </div>
+
+          <div class="row row--gap-3" style="justify-content:flex-end;">
+            <button type="submit" class="btn btn--primary" id="btn-save-settings">Save Changes</button>
+          </div>
+        </form>
+      </section>
+
+    </div><!-- /.admin-page -->
+  </main>
+</div><!-- /.admin-shell -->
+
+<!-- ── Plan editor modal ── -->
+<div class="modal-overlay modal-overlay--centered" id="plan-modal-overlay">
+  <div class="modal">
+    <button class="modal__close" id="plan-modal-close" aria-label="Close">✕</button>
+    <h2 class="modal__title" id="plan-modal-title">New Plan</h2>
+
+    <form id="plan-form" class="stack stack--4">
+      <input type="hidden" id="pf-plan-id" />
+
+      <div class="form-group">
+        <label class="form-label" for="pf-name">Plan Name</label>
+        <input type="text" class="form-input form-input--light" id="pf-name" required />
+      </div>
+
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label" for="pf-account-size">Account Size ($)</label>
+          <input type="number" class="form-input form-input--light" id="pf-account-size" min="0" step="1" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="pf-price">Price ($)</label>
+          <input type="number" class="form-input form-input--light" id="pf-price" min="0" step="0.01" required />
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label" for="pf-phase1">Phase 1 Target (%)</label>
+          <input type="number" class="form-input form-input--light" id="pf-phase1" min="0" step="0.1" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="pf-phase2">Phase 2 Target (%)</label>
+          <input type="number" class="form-input form-input--light" id="pf-phase2" min="0" step="0.1" required />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="pf-drawdown">Max Drawdown (%)</label>
+        <input type="number" class="form-input form-input--light" id="pf-drawdown" min="0" step="0.1" required />
+      </div>
+
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label" for="pf-split1">1st Payout Split (%)</label>
+          <input type="number" class="form-input form-input--light" id="pf-split1" min="0" max="100" step="1" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="pf-split2">2nd+ Payout Split (%)</label>
+          <input type="number" class="form-input form-input--light" id="pf-split2" min="0" max="100" step="1" required />
+        </div>
+      </div>
+
+      <label class="toggle">
+        <input type="checkbox" class="toggle__input" id="pf-active" checked />
+        <span class="toggle__track"></span>
+        <span class="toggle__label">Active (visible in Marketplace)</span>
+      </label>
+
+      <div class="modal__footer">
+        <button type="button" class="btn btn--ghost" id="plan-modal-cancel">Cancel</button>
+        <button type="submit" class="btn btn--primary" id="plan-modal-save">Save Plan</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ── Promo code modal ── -->
+<div class="modal-overlay modal-overlay--centered" id="code-modal-overlay">
+  <div class="modal">
+    <button class="modal__close" id="code-modal-close" aria-label="Close">✕</button>
+    <h2 class="modal__title">New Promo Code</h2>
+
+    <form id="code-form" class="stack stack--4">
+      <div class="form-group">
+        <label class="form-label" for="cf-code">Code</label>
+        <input type="text" class="form-input form-input--light" id="cf-code" maxlength="32" style="text-transform:uppercase;" required />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="cf-percent">Discount Percent (%)</label>
+        <input type="number" class="form-input form-input--light" id="cf-percent" min="1" max="100" step="1" required />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="cf-max-uses">Max Uses</label>
+        <input type="number" class="form-input form-input--light" id="cf-max-uses" min="1" step="1" placeholder="Leave blank for unlimited" />
+      </div>
+
+      <div class="modal__footer">
+        <button type="button" class="btn btn--ghost" id="code-modal-cancel">Cancel</button>
+        <button type="submit" class="btn btn--primary" id="code-modal-save">Create Code</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────────────
+  // SESSION
+  // ─────────────────────────────────────────────────────────────────────
+  const sessionToken = localStorage.getItem('nf_admin_session');
+  if (!sessionToken) {
+    window.location.href = 'admin-login.html';
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // GAS endpoint
+  // ─────────────────────────────────────────────────────────────────────
+  const GAS_URL = 'https://script.google.com/macros/s/AKfycby5CP3009zjmY4O2K2-nGdTyAcKsu4FL6bYfumxMGVeIkh8GlMrhdE6dk6oxiSeyNUk/exec'; // <-- paste your deployed GAS Web App URL here
+
+  // ─────────────────────────────────────────────────────────────────────
+  // STATE
+  // ─────────────────────────────────────────────────────────────────────
+  let plans         = [];
+  let codes         = [];
+  let selectedUser   = null;
+  let currentRoute   = 'plans';
+
+  // ─────────────────────────────────────────────────────────────────────
+  // DOM refs
+  // ─────────────────────────────────────────────────────────────────────
+  const pageLoading     = document.getElementById('page-loading');
+  const adminShell      = document.getElementById('admin-shell');
+  const topbarTitle      = document.getElementById('topbar-title');
+  const sidebar          = document.getElementById('admin-sidebar');
+  const sidebarBackdrop  = document.getElementById('sidebar-backdrop');
+  const btnMenu          = document.getElementById('btn-menu');
+  const navItems         = document.querySelectorAll('.admin-nav__item');
+  const views            = document.querySelectorAll('.admin-view');
+
+  const ROUTE_TITLES = { plans: 'Plans', codes: 'Discount Codes', users: 'Users', settings: 'Settings' };
+
+  // ─────────────────────────────────────────────────────────────────────
+  // ROUTING (hash-based)
+  // ─────────────────────────────────────────────────────────────────────
+  function getRouteFromHash() {
+    const hash = window.location.hash.replace('#/', '');
+    return ROUTE_TITLES[hash] ? hash : 'plans';
+  }
+
+  function navigate(route) {
+    currentRoute = route;
+    window.location.hash = '#/' + route;
+    renderRoute();
+  }
+
+  function renderRoute() {
+    views.forEach(v => v.classList.toggle('admin-view--active', v.id === 'view-' + currentRoute));
+    navItems.forEach(n => n.classList.toggle('admin-nav__item--active', n.dataset.route === currentRoute));
+    topbarTitle.textContent = ROUTE_TITLES[currentRoute];
+    closeSidebar();
+
+    if (currentRoute === 'plans' && plans.length === 0)   loadPlans();
+    if (currentRoute === 'codes' && codes.length === 0)   loadCodes();
+    if (currentRoute === 'settings')                       loadSettings();
+  }
+
+  navItems.forEach(item => {
+    item.addEventListener('click', () => navigate(item.dataset.route));
+  });
+
+  window.addEventListener('hashchange', () => {
+    currentRoute = getRouteFromHash();
+    renderRoute();
+  });
+
+  // ─────────────────────────────────────────────────────────────────────
+  // MOBILE SIDEBAR
+  // ─────────────────────────────────────────────────────────────────────
+  function openSidebar()  { sidebar.classList.add('admin-sidebar--open'); sidebarBackdrop.classList.add('admin-sidebar-backdrop--open'); }
+  function closeSidebar() { sidebar.classList.remove('admin-sidebar--open'); sidebarBackdrop.classList.remove('admin-sidebar-backdrop--open'); }
+  btnMenu.addEventListener('click', openSidebar);
+  sidebarBackdrop.addEventListener('click', closeSidebar);
+
+  // ─────────────────────────────────────────────────────────────────────
+  // LOGOUT
+  // ─────────────────────────────────────────────────────────────────────
+  document.getElementById('btn-logout').addEventListener('click', () => {
+    localStorage.removeItem('nf_admin_session');
+    window.location.href = 'admin-login.html';
+  });
+
+  // ─────────────────────────────────────────────────────────────────────
+  // BOOT
+  // ─────────────────────────────────────────────────────────────────────
+  async function init() {
+    currentRoute = getRouteFromHash();
+    pageLoading.style.display = 'none';
+    adminShell.style.display  = 'flex';
+    renderRoute();
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // PLANS
+  // ═══════════════════════════════════════════════════════════════════
+  const plansSkeleton = document.getElementById('plans-skeleton');
+  const plansGrid      = document.getElementById('plans-grid');
+  const plansEmpty     = document.getElementById('plans-empty');
+
+  async function loadPlans() {
+    plansSkeleton.style.display = 'grid';
+    plansGrid.style.display     = 'none';
+    plansEmpty.style.display    = 'none';
+
+    try {
+      const res = await gasPost({ action: 'getPlans' });
+      plans = res.plans || [];
+      renderPlans();
+    } catch (err) {
+      showToast('error', '⚠️', 'Could not load plans.');
+    } finally {
+      plansSkeleton.style.display = 'none';
+    }
+  }
+
+  function renderPlans() {
+    if (plans.length === 0) {
+      plansEmpty.style.display = 'flex';
+      plansGrid.style.display  = 'none';
+      return;
+    }
+
+    plansGrid.style.display = 'grid';
+    plansGrid.innerHTML = '';
+
+    plans.forEach(plan => {
+      const card = document.createElement('div');
+      card.className = 'admin-card plan-edit-card';
+      card.innerHTML = `
+        <div class="admin-card__header">
+          <span class="plan-edit-card__size">$${formatNumber(plan.account_size)}</span>
+          <span class="badge badge--${plan.is_active ? 'active' : 'closed'}">${plan.is_active ? 'Active' : 'Inactive'}</span>
+        </div>
+        <p class="text-muted text-sm mb-3">${escHtml(plan.name)} · $${formatNumber(plan.price_usd)}</p>
+        <div class="plan-meta-row"><span>Phase 1 Target</span><span class="plan-meta-row__value">${plan.phase1_target}%</span></div>
+        <div class="plan-meta-row"><span>Phase 2 Target</span><span class="plan-meta-row__value">${plan.phase2_target}%</span></div>
+        <div class="plan-meta-row"><span>Max Drawdown</span><span class="plan-meta-row__value">${plan.max_drawdown}%</span></div>
+        <div class="plan-meta-row"><span>Payout Split</span><span class="plan-meta-row__value">${plan.payout_split_first}% / ${plan.payout_split_second}%</span></div>
+        <div class="plan-edit-card__footer">
+          <button class="btn btn--ghost btn--sm btn-edit-plan" data-plan-id="${plan.plan_id}">Edit</button>
+          <label class="toggle">
+            <input type="checkbox" class="toggle__input plan-active-toggle" data-plan-id="${plan.plan_id}" ${plan.is_active ? 'checked' : ''} />
+            <span class="toggle__track"></span>
+          </label>
+        </div>
+      `;
+      plansGrid.appendChild(card);
+    });
+
+    plansGrid.querySelectorAll('.btn-edit-plan').forEach(btn => {
+      btn.addEventListener('click', () => openPlanModal(btn.dataset.planId));
+    });
+    plansGrid.querySelectorAll('.plan-active-toggle').forEach(toggle => {
+      toggle.addEventListener('change', () => togglePlanActive(toggle.dataset.planId, toggle.checked));
+    });
+  }
+
+  async function togglePlanActive(planId, isActive) {
+    try {
+      const res = await gasPost({ action: 'togglePlanActive', plan_id: planId, is_active: isActive, session: sessionToken });
+      if (!res.success) throw new Error(res.error || 'Update failed.');
+      const plan = plans.find(p => p.plan_id === planId);
+      if (plan) plan.is_active = isActive;
+      renderPlans();
+      showToast('success', '✅', `Plan ${isActive ? 'activated' : 'deactivated'}.`);
+    } catch (err) {
+      showToast('error', '⚠️', err.message || 'Could not update plan.');
+      renderPlans(); // revert toggle visually
+    }
+  }
+
+  // ── Plan modal ──
+  const planModalOverlay = document.getElementById('plan-modal-overlay');
+  const planModalTitle   = document.getElementById('plan-modal-title');
+  const planForm         = document.getElementById('plan-form');
+
+  document.getElementById('btn-new-plan').addEventListener('click', () => openPlanModal(null));
+  document.getElementById('plan-modal-close').addEventListener('click', closePlanModal);
+  document.getElementById('plan-modal-cancel').addEventListener('click', closePlanModal);
+
+  function openPlanModal(planId) {
+    const plan = planId ? plans.find(p => p.plan_id === planId) : null;
+    planModalTitle.textContent = plan ? 'Edit Plan' : 'New Plan';
+
+    document.getElementById('pf-plan-id').value      = plan?.plan_id || '';
+    document.getElementById('pf-name').value          = plan?.name || '';
+    document.getElementById('pf-account-size').value  = plan?.account_size || '';
+    document.getElementById('pf-price').value         = plan?.price_usd || '';
+    document.getElementById('pf-phase1').value        = plan?.phase1_target || '';
+    document.getElementById('pf-phase2').value        = plan?.phase2_target || '';
+    document.getElementById('pf-drawdown').value      = plan?.max_drawdown || '';
+    document.getElementById('pf-split1').value        = plan?.payout_split_first || '';
+    document.getElementById('pf-split2').value        = plan?.payout_split_second || '';
+    document.getElementById('pf-active').checked      = plan ? !!plan.is_active : true;
+
+    planModalOverlay.classList.add('modal-overlay--open');
+  }
+
+  function closePlanModal() {
+    planModalOverlay.classList.remove('modal-overlay--open');
+  }
+
+  planForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const saveBtn = document.getElementById('plan-modal-save');
+    saveBtn.classList.add('btn--loading');
+    saveBtn.disabled = true;
+
+    const planId = document.getElementById('pf-plan-id').value;
+    const payload = {
+      action: planId ? 'updatePlan' : 'createPlan',
+      session: sessionToken,
+      plan_id: planId || undefined,
+      name: document.getElementById('pf-name').value.trim(),
+      account_size: Number(document.getElementById('pf-account-size').value),
+      price_usd: Number(document.getElementById('pf-price').value),
+      phase1_target: Number(document.getElementById('pf-phase1').value),
+      phase2_target: Number(document.getElementById('pf-phase2').value),
+      max_drawdown: Number(document.getElementById('pf-drawdown').value),
+      payout_split_first: Number(document.getElementById('pf-split1').value),
+      payout_split_second: Number(document.getElementById('pf-split2').value),
+      is_active: document.getElementById('pf-active').checked,
+    };
+
+    try {
+      const res = await gasPost(payload);
+      if (!res.success) throw new Error(res.error || 'Save failed.');
+      closePlanModal();
+      showToast('success', '✅', planId ? 'Plan updated.' : 'Plan created.');
+      await loadPlans();
+    } catch (err) {
+      showToast('error', '⚠️', err.message || 'Could not save plan.');
+    } finally {
+      saveBtn.classList.remove('btn--loading');
+      saveBtn.disabled = false;
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // DISCOUNT CODES
+  // ═══════════════════════════════════════════════════════════════════
+  const codesTbody      = document.getElementById('codes-tbody');
+  const codesEmpty      = document.getElementById('codes-empty');
+  const codesTypeFilter = document.getElementById('codes-type-filter');
+
+  async function loadCodes() {
+    codesTbody.innerHTML = `
+      <tr class="table-skeleton-row"><td colspan="7"><div class="skeleton-bar"></div></td></tr>
+      <tr class="table-skeleton-row"><td colspan="7"><div class="skeleton-bar"></div></td></tr>
+    `;
+    try {
+      const res = await gasPost({ action: 'getDiscountCodes' });
+      codes = res.codes || [];
+      renderCodes();
+    } catch (err) {
+      showToast('error', '⚠️', 'Could not load discount codes.');
+    }
+  }
+
+  codesTypeFilter.addEventListener('change', renderCodes);
+
+  function renderCodes() {
+    const filter = codesTypeFilter.value;
+    const filtered = filter === 'all' ? codes : codes.filter(c => c.type === filter);
+
+    if (filtered.length === 0) {
+      codesTbody.innerHTML = '';
+      codesEmpty.style.display = 'flex';
+      return;
+    }
+    codesEmpty.style.display = 'none';
+
+    codesTbody.innerHTML = filtered.map(code => `
+      <tr>
+        <td class="mono">${escHtml(code.code)}</td>
+        <td>${code.type === 'promo' ? 'Promo' : 'Points Shop'}</td>
+        <td>${code.discount_percent}%</td>
+        <td>${code.uses_so_far || 0}${code.max_uses ? ' / ' + code.max_uses : ''}</td>
+        <td><span class="badge badge--${code.is_active ? 'active' : 'closed'}">${code.is_active ? 'Active' : 'Inactive'}</span></td>
+        <td>${formatDate(code.created_at)}</td>
+        <td>
+          ${code.type === 'promo' ? `
+            <label class="toggle">
+              <input type="checkbox" class="toggle__input code-active-toggle" data-code="${escHtml(code.code)}" ${code.is_active ? 'checked' : ''} />
+              <span class="toggle__track"></span>
+            </label>
+          ` : ''}
+        </td>
+      </tr>
+    `).join('');
+
+    codesTbody.querySelectorAll('.code-active-toggle').forEach(toggle => {
+      toggle.addEventListener('change', () => toggleCodeActive(toggle.dataset.code, toggle.checked));
+    });
+  }
+
+  async function toggleCodeActive(code, isActive) {
+    try {
+      const res = await gasPost({ action: 'toggleCodeActive', code, is_active: isActive, session: sessionToken });
+      if (!res.success) throw new Error(res.error || 'Update failed.');
+      const c = codes.find(c => c.code === code);
+      if (c) c.is_active = isActive;
+      renderCodes();
+      showToast('success', '✅', `Code ${isActive ? 'activated' : 'deactivated'}.`);
+    } catch (err) {
+      showToast('error', '⚠️', err.message || 'Could not update code.');
+      renderCodes();
+    }
+  }
+
+  // ── Code modal ──
+  const codeModalOverlay = document.getElementById('code-modal-overlay');
+  const codeForm          = document.getElementById('code-form');
+
+  document.getElementById('btn-new-code').addEventListener('click', () => {
+    codeForm.reset();
+    codeModalOverlay.classList.add('modal-overlay--open');
+  });
+  document.getElementById('code-modal-close').addEventListener('click', closeCodeModal);
+  document.getElementById('code-modal-cancel').addEventListener('click', closeCodeModal);
+
+  function closeCodeModal() {
+    codeModalOverlay.classList.remove('modal-overlay--open');
+  }
+
+  codeForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const saveBtn = document.getElementById('code-modal-save');
+    saveBtn.classList.add('btn--loading');
+    saveBtn.disabled = true;
+
+    const maxUsesVal = document.getElementById('cf-max-uses').value;
+
+    try {
+      const res = await gasPost({
+        action: 'createPromoCode',
+        session: sessionToken,
+        code: document.getElementById('cf-code').value.trim().toUpperCase(),
+        discount_percent: Number(document.getElementById('cf-percent').value),
+        max_uses: maxUsesVal ? Number(maxUsesVal) : null,
+      });
+      if (!res.success) throw new Error(res.error || 'Create failed.');
+      closeCodeModal();
+      showToast('success', '✅', 'Promo code created.');
+      await loadCodes();
+    } catch (err) {
+      showToast('error', '⚠️', err.message || 'Could not create code.');
+    } finally {
+      saveBtn.classList.remove('btn--loading');
+      saveBtn.disabled = false;
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // USERS
+  // ═══════════════════════════════════════════════════════════════════
+  const userSearchInput = document.getElementById('user-search-input');
+  const btnUserSearch    = document.getElementById('btn-user-search');
+  const usersTbody       = document.getElementById('users-tbody');
+  const usersEmpty       = document.getElementById('users-empty');
+  const userDetailEmpty  = document.getElementById('user-detail-empty');
+  const userDetailContent= document.getElementById('user-detail-content');
+
+  btnUserSearch.addEventListener('click', searchUsers);
+  userSearchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') searchUsers(); });
+
+  async function searchUsers() {
+    const query = userSearchInput.value.trim();
+    if (!query) return;
+
+    usersTbody.innerHTML = `<tr class="table-skeleton-row"><td colspan="5"><div class="skeleton-bar"></div></td></tr>`;
+    usersEmpty.style.display = 'none';
+
+    try {
+      const res = await gasPost({ action: 'searchUsers', query, session: sessionToken });
+      const results = res.users || [];
+
+      if (results.length === 0) {
+        usersTbody.innerHTML = '';
+        usersEmpty.style.display = 'flex';
+        usersEmpty.querySelector('.empty-state__title').textContent = 'No matching users';
+        usersEmpty.querySelector('.empty-state__desc').textContent  = 'Try a different Telegram ID or username.';
+        return;
+      }
+
+      usersTbody.innerHTML = results.map(u => `
+        <tr>
+          <td>${escHtml(u.username || '—')}</td>
+          <td class="mono">${escHtml(u.telegram_id)}</td>
+          <td>${formatDate(u.join_date)}</td>
+          <td>${u.points_balance || 0}</td>
+          <td><button class="btn btn--ghost btn--sm btn-view-user" data-telegram-id="${escHtml(u.telegram_id)}">View</button></td>
+        </tr>
+      `).join('');
+
+      usersTbody.querySelectorAll('.btn-view-user').forEach(btn => {
+        btn.addEventListener('click', () => loadUserDetail(btn.dataset.telegramId));
+      });
+
+    } catch (err) {
+      showToast('error', '⚠️', 'Search failed.');
+      usersTbody.innerHTML = '';
+    }
+  }
+
+  async function loadUserDetail(telegramId) {
+    userDetailEmpty.style.display = 'flex';
+    userDetailContent.style.display = 'none';
+
+    try {
+      const res = await gasPost({ action: 'getUserDetail', telegram_id: telegramId, session: sessionToken });
+      if (!res.success) throw new Error(res.error || 'Could not load user.');
+      renderUserDetail(res.user, res.orders, res.accounts, res.ledger, res.referrals);
+    } catch (err) {
+      showToast('error', '⚠️', err.message || 'Could not load user details.');
+    }
+  }
+
+  function renderUserDetail(user, orders, accounts, ledger, referrals) {
+    userDetailEmpty.style.display   = 'none';
+    userDetailContent.style.display = 'block';
+
+    document.getElementById('ud-avatar').textContent     = (user.username || user.first_name || '?')[0].toUpperCase();
+    document.getElementById('ud-name').textContent       = user.username ? '@' + user.username : (user.first_name || 'Unknown');
+    document.getElementById('ud-id').textContent         = 'Telegram ID: ' + user.telegram_id;
+    document.getElementById('ud-points').textContent     = user.points_balance || 0;
+    document.getElementById('ud-refcode').textContent    = user.referral_code || '—';
+    document.getElementById('ud-referredby').textContent = user.referred_by || '—';
+
+    const ordersEl = document.getElementById('ud-orders');
+    ordersEl.innerHTML = (orders || []).length
+      ? orders.map(o => `<div class="card__row"><span class="card__row-label">${escHtml(o.plan_id)} · $${formatNumber(o.price_paid)}</span><span class="badge badge--${o.payment_status}">${o.payment_status}</span></div>`).join('')
+      : '<p class="text-muted text-sm">No orders.</p>';
+
+    const accountsEl = document.getElementById('ud-accounts');
+    accountsEl.innerHTML = (accounts || []).length
+      ? accounts.map(a => `<div class="card__row"><span class="card__row-label">Phase ${a.phase} · ${escHtml(a.account_id)}</span><span class="badge badge--${a.status}">${a.status}</span></div>`).join('')
+      : '<p class="text-muted text-sm">No accounts.</p>';
+
+    const ledgerEl = document.getElementById('ud-ledger');
+    ledgerEl.innerHTML = (ledger || []).length
+      ? ledger.map(l => `<div class="card__row"><span class="card__row-label">${escHtml(l.reason)}</span><span class="card__row-value">${l.points > 0 ? '+' : ''}${l.points}</span></div>`).join('')
+      : '<p class="text-muted text-sm">No points history.</p>';
+
+    const referralsEl = document.getElementById('ud-referrals');
+    referralsEl.innerHTML = (referrals || []).length
+      ? referrals.map(r => `<div class="card__row"><span class="card__row-label">${escHtml(r.referred_telegram_id)}</span><span class="badge badge--${r.status}">${r.status}</span></div>`).join('')
+      : '<p class="text-muted text-sm">No referrals yet.</p>';
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // SETTINGS
+  // ═══════════════════════════════════════════════════════════════════
+  const settingsForm = document.getElementById('settings-form');
+  let settingsLoaded   = false;
+
+  async function loadSettings() {
+    if (settingsLoaded) return;
+    try {
+      const res = await gasPost({ action: 'getSettings', session: sessionToken });
+      const s = res.settings || {};
+      document.getElementById('set-points-per-referral').value = s.points_per_referral || 0;
+      document.getElementById('set-blown-refund-toggle').checked = s.blown_refund_toggle === 'true' || s.blown_refund_toggle === true;
+      document.getElementById('set-admin-telegram-id').value = s.admin_telegram_id || '';
+      document.getElementById('set-wallet-address').value = s.wallet_address || '';
+      settingsLoaded = true;
+    } catch (err) {
+      showToast('error', '⚠️', 'Could not load settings.');
+    }
+  }
+
+  settingsForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const saveBtn = document.getElementById('btn-save-settings');
+    saveBtn.classList.add('btn--loading');
+    saveBtn.disabled = true;
+
+    try {
+      const res = await gasPost({
+        action: 'updateSettings',
+        session: sessionToken,
+        settings: {
+          points_per_referral: Number(document.getElementById('set-points-per-referral').value),
+          blown_refund_toggle: document.getElementById('set-blown-refund-toggle').checked,
+          admin_telegram_id: document.getElementById('set-admin-telegram-id').value.trim(),
+          wallet_address: document.getElementById('set-wallet-address').value.trim(),
+        },
+      });
+      if (!res.success) throw new Error(res.error || 'Save failed.');
+      showToast('success', '✅', 'Settings saved.');
+    } catch (err) {
+      showToast('error', '⚠️', err.message || 'Could not save settings.');
+    } finally {
+      saveBtn.classList.remove('btn--loading');
+      saveBtn.disabled = false;
+    }
+  });
+
+  // ─────────────────────────────────────────────────────────────────────
+  // GAS helper
+  // ─────────────────────────────────────────────────────────────────────
+  async function gasPost(body) {
+    if (!GAS_URL) throw new Error('GAS_URL not set');
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+
+    if (data.error === 'session_expired' || data.error === 'unauthorized') {
+      localStorage.removeItem('nf_admin_session');
+      window.location.href = 'admin-login.html';
+      throw new Error('Session expired.');
+    }
+    if (data.error) throw new Error(data.error);
+    return data;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // Toast
+  // ─────────────────────────────────────────────────────────────────────
+  function showToast(type, icon, msg) {
+    const container = document.getElementById('toast-container');
+    const el = document.createElement('div');
+    el.className = `toast toast--${type}`;
+    el.innerHTML = `<span class="toast__icon">${icon}</span><span class="toast__msg">${msg}</span>`;
+    container.appendChild(el);
+    setTimeout(() => {
+      el.classList.add('toast--exit');
+      setTimeout(() => el.remove(), 300);
+    }, 4000);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // Utils
+  // ─────────────────────────────────────────────────────────────────────
+  function formatNumber(n) {
+    return Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '—';
+    try { return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+    catch { return '—'; }
+  }
+
+  function escHtml(str) {
+    return String(str ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // Kick off
+  // ─────────────────────────────────────────────────────────────────────
+  init();
+</script>
+</body>
+</html>

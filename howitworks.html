@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NowFunded — How It Works</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    /* ── How-It-Works specific styles ── */
+
+    .hiw-hero {
+      padding: var(--sp-8) 0 var(--sp-6);
+      text-align: center;
+    }
+
+    .hiw-hero__icon { font-size: 2.25rem; margin-bottom: var(--sp-3); }
+
+    .hiw-hero h1 {
+      font-family: var(--font-display);
+      font-size: 1.75rem;
+      font-weight: 400;
+      color: var(--c-surface);
+      letter-spacing: -0.02em;
+      margin-bottom: var(--sp-2);
+    }
+
+    .hiw-hero p {
+      color: var(--c-muted);
+      font-size: 0.9375rem;
+      max-width: 320px;
+      margin-inline: auto;
+      line-height: 1.6;
+    }
+
+    /* Jump nav (chips) */
+    .hiw-nav {
+      display: flex;
+      gap: var(--sp-2);
+      overflow-x: auto;
+      padding-bottom: var(--sp-2);
+      margin-bottom: var(--sp-8);
+      scrollbar-width: none;
+    }
+    .hiw-nav::-webkit-scrollbar { display: none; }
+
+    .hiw-nav__chip {
+      flex-shrink: 0;
+      padding: var(--sp-2) var(--sp-4);
+      border-radius: var(--r-pill);
+      border: 1px solid var(--c-border);
+      background: var(--c-surface-ghost);
+      color: var(--c-muted);
+      font-size: 0.8125rem;
+      font-weight: 600;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: color var(--t-fast) var(--ease),
+                  border-color var(--t-fast) var(--ease),
+                  background var(--t-fast) var(--ease);
+    }
+
+    .hiw-nav__chip:hover,
+    .hiw-nav__chip--active {
+      color: var(--c-copper);
+      border-color: rgba(201,123,74,.4);
+      background: rgba(201,123,74,.08);
+    }
+
+    /* Section block */
+    .hiw-section {
+      margin-bottom: var(--sp-10);
+      scroll-margin-top: var(--sp-6);
+    }
+
+    .hiw-section__header {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-3);
+      margin-bottom: var(--sp-4);
+    }
+
+    .hiw-section__icon {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--r-md);
+      background: rgba(201,123,74,.12);
+      border: 1px solid rgba(201,123,74,.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.0625rem;
+      flex-shrink: 0;
+    }
+
+    .hiw-section__title {
+      font-family: var(--font-display);
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--c-surface);
+    }
+
+    /* FAQ accordion */
+    .faq-item {
+      border-bottom: 1px solid var(--c-border);
+    }
+
+    .faq-item:first-child { border-top: 1px solid var(--c-border); }
+
+    .faq-item__question {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--sp-3);
+      padding: var(--sp-4) 0;
+      background: none;
+      border: none;
+      text-align: left;
+      cursor: pointer;
+      font-family: var(--font-ui);
+      font-size: 0.9375rem;
+      font-weight: 600;
+      color: var(--c-surface);
+    }
+
+    .faq-item__chevron {
+      flex-shrink: 0;
+      color: var(--c-muted);
+      transition: transform var(--t-fast) var(--ease);
+      font-size: 0.75rem;
+    }
+
+    .faq-item--open .faq-item__chevron { transform: rotate(180deg); color: var(--c-copper); }
+
+    .faq-item__answer {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height var(--t-base) var(--ease);
+    }
+
+    .faq-item__answer-inner {
+      padding-bottom: var(--sp-4);
+      color: var(--c-muted);
+      font-size: 0.875rem;
+      line-height: 1.65;
+    }
+
+    .faq-item__answer-inner strong { color: var(--c-surface); font-weight: 600; }
+
+    .faq-item__answer-inner code {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 0.8125rem;
+      color: var(--c-copper);
+      background: rgba(201,123,74,.1);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    /* Inline stat pill (dynamic values from Settings) */
+    .hiw-stat-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-weight: 700;
+      color: var(--c-copper);
+    }
+
+    /* Mini status ladder recap */
+    .hiw-ladder-mini {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+      flex-wrap: wrap;
+      margin: var(--sp-4) 0 var(--sp-2);
+    }
+
+    .hiw-ladder-mini__step {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-1);
+      padding: var(--sp-1) var(--sp-3);
+      border-radius: var(--r-pill);
+      background: var(--c-surface-ghost);
+      border: 1px solid var(--c-border);
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--c-muted);
+    }
+
+    .hiw-ladder-mini__arrow { color: var(--c-muted); font-size: 0.75rem; }
+
+    /* Wallet box re-used styling (matches marketplace) */
+    .wallet-box {
+      background: var(--c-surface-ghost);
+      border: 1px solid var(--c-border);
+      border-radius: var(--r-md);
+      padding: var(--sp-4);
+      margin-top: var(--sp-4);
+    }
+
+    .wallet-box__label {
+      font-size: 0.6875rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--c-muted);
+      margin-bottom: var(--sp-2);
+    }
+
+    .wallet-box__address {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 0.875rem;
+      color: var(--c-copper);
+      word-break: break-all;
+      line-height: 1.5;
+    }
+
+    /* Bottom CTA */
+    .hiw-cta {
+      text-align: center;
+      padding: var(--sp-8) 0 var(--sp-4);
+    }
+  </style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div class="loading-overlay" id="page-loading">
+  <div class="spinner spinner--lg"></div>
+</div>
+
+<!-- Top bar -->
+<header class="topbar">
+  <span class="topbar__logo">Now<span>Funded</span></span>
+  <a href="dashboard.html" class="btn btn--ghost btn--sm">Dashboard</a>
+</header>
+
+<!-- Main content -->
+<main class="main-content container" id="main-content" style="display:none;">
+
+  <div class="hiw-hero">
+    <div class="hiw-hero__icon">📘</div>
+    <h1>How NowFunded Works</h1>
+    <p>Everything about challenges, drawdown, payouts, points, and referrals — in one place.</p>
+  </div>
+
+  <!-- Jump nav -->
+  <nav class="hiw-nav" id="hiw-nav" aria-label="Section navigation">
+    <button class="hiw-nav__chip" data-target="sec-challenge">Challenge Rules</button>
+    <button class="hiw-nav__chip" data-target="sec-drawdown">Drawdown</button>
+    <button class="hiw-nav__chip" data-target="sec-payouts">Payouts</button>
+    <button class="hiw-nav__chip" data-target="sec-points">Points</button>
+    <button class="hiw-nav__chip" data-target="sec-referrals">Referrals</button>
+  </nav>
+
+  <!-- ── CHALLENGE RULES ── -->
+  <section class="hiw-section" id="sec-challenge">
+    <div class="hiw-section__header">
+      <span class="hiw-section__icon">🎯</span>
+      <h2 class="hiw-section__title">Challenge Rules</h2>
+    </div>
+
+    <div class="hiw-ladder-mini">
+      <span class="hiw-ladder-mini__step">Phase 1</span>
+      <span class="hiw-ladder-mini__arrow">→</span>
+      <span class="hiw-ladder-mini__step">Phase 2</span>
+      <span class="hiw-ladder-mini__arrow">→</span>
+      <span class="hiw-ladder-mini__step">Funded</span>
+      <span class="hiw-ladder-mini__arrow">→</span>
+      <span class="hiw-ladder-mini__step">Scaled</span>
+    </div>
+
+    <div class="faq-list">
+      <div class="faq-item">
+        <button class="faq-item__question">
+          What are the phases?
+          <span class="faq-item__chevron">▾</span>
+        </button>
+        <div class="faq-item__answer">
+          <div class="faq-item__answer-inner">
+            Every challenge has two evaluation phases before funding. <strong>Phase 1</strong> has a higher
+            profit target than <strong>Phase 2</strong> — clear them both, staying within the max drawdown,
+            and we issue your live MT5 credentials.
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-item__question">
+          What happens if I breach a phase?
+          <span class="faq-item__chevron">▾</span>
+        </button>
+        <div class="faq-item__answer">
+          <div class="faq-item__answer-inner">
+            Breaching the max drawdown during Phase 1 or Phase 2 means the challenge fee is lost.
+            There's <strong>no reset and no refund</strong> — you're free to purchase a new challenge
+            from the Marketplace at any time.
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-item__question">
+          What if I breach after I'm funded?
+          <span class="faq-item__chevron">▾</span>
+        </button>
+        <div class="faq-item__answer">
+          <div class="faq-item__answer-inner">
+            Breaching drawdown on a <strong>funded</strong> or <strong>scaled</strong> account marks it
+            as blown. Depending on current promotions, a portion of your original fee may be refunded
+            as points — this is shown on your dashboard if it applies to you.
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-item__question">
+          Are phase progressions automatic?
+          <span class="faq-item__chevron">▾</span>
+        </button>
+        <div class="faq-item__answer">
+          <div class="faq-item__answer-inner">
+            No — every progression (passing a phase, issuing credentials, marking funded or scaled)
+            is reviewed and actioned manually by our team. You'll get a Telegram notification the
+            moment your status changes.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── DRAWDOWN ── -->
+  <section class="hiw-section" id="sec-drawdown">
+    <div class="hiw-section__header">
+      <span class="hiw-section__icon">📉</span>
+      <h2 class="hiw-section__title">Drawdown</h2>
+    </div>
+
+    <div class="faq-list">
+      <div class="faq-item">
+        <button class="faq-item__question">
+          How is max drawdown measured?
+          <span class="faq-item__chevron">▾</span>
+        </button>
+        <div class="faq-item__answer">
+          <div class="faq-item__answer-inner">
+            Drawdown is measured at the <strong>account level</strong>, calculated <strong>end-of-day</strong>.
+            There is <strong>no intraday or daily drawdown limit</strong> — only the overall maximum shown
+            on your plan matters.
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-item__question">
+          Where can I see my account's drawdown limit?
+          <span class="faq-item__chevron">▾</span>
+        </button>
+        <div class="faq-item__answer">
+          <div class="faq-item__answer-inner">
+            Your max drawdown percentage is shown on your plan card in the Marketplace and again on
+            your Dashboard under your current account's linked plan details.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── PAYOUTS ── -->
+  <section class="hiw-section" id="sec-payouts">
+    <div class="hiw-section__header">
+      <span class="hiw-section__icon">💸</span>
+      <h2 class="hiw-section__title">Payouts</h2>
+    </div>
+
+    <div class="faq-list">
+      <div class="faq-item">
+        <button class="faq-item__question">
+          How much of my profit do I keep?
+          <span class="faq-item__chevron">▾</span>
+        </button>
+        <div class="faq-item__answer">
+          <div class="faq-item__answer-inner">
+            Your <strong>first payout</strong> uses your plan's first-payout split
+            (<span class="hiw-stat-pill" id="splitFirstInline">—%</span>).
+            From your <strong>second payout onward</strong>, the higher split applies
+            (<span class="hiw-stat-pill" id="splitSecondInline">—%</span>). There's no lock-up period —
+            request a payout whenever you're ready.
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-item__question">
+          What happens after my second payout?
+          <span class="faq-item__chevron">▾</span>
+        </button>
+        <div class="faq-item__answer">
+          <div class="faq-item__answer-inner">
+            Once your second payout is approved, your account becomes eligible for a
+            <strong>scale-up</strong> 🚀 — you'll be notified as soon as it's ready to action.
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-item__question">
+          How do I request a payout?
+          <span class="faq-item__chevron">▾</span>
+        </button>
+        <div class="faq-item__answer">
+          <div class="faq-item__answer-inner">
+            On your Dashboard, the payout button appears once your account is <strong>funded</strong>
+            or <strong>scaled</strong>. Enter the wallet address you want paid out to and the amount —
+            our team reviews and approves payouts manually.
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-item__question">
+          How are payments and payouts processed?
+          <span class="faq-item__chevron">▾</span>
+        </button>
+        <div class="faq-item__answer">
+          <div class="faq-item__answer-inner">
+            All challenge fees and payouts are <strong>crypto only</strong>, confirmed manually by our
+            admin team. Send your challenge payment to the wallet address shown at checkout, then submit
+            your transaction reference.
+            <div class="wallet-box" id="wallet-box" style="display:none;">
+              <div class="wallet-box__label">Current Wallet Address</div>
+              <div class="wallet-box__address" id="wallet-address"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── POINTS ── -->
+  <section class="hiw-section" id="sec-points">
+    <div class="hiw-section__header">
+      <span class="hiw-section__icon">⭐</span>
+      <h2 class="hiw-section__title">Points</h2>
+    </div>
+
+    <div class="faq-list">
+      <div class="faq-item">
+        <button class="faq-item__question">
+          How do I earn points?
+          <span class="faq-item__chevron">▾</span>
+        </button>
+        <div class="faq-item__answer">
+          <div class="faq-item__answer-inner">
+            You earn points when a trader you referred has their payment confirmed, and — depending on
+            current promotions — when a funded or scaled account is blown, a portion of the lost fee can
+            be refunded to you as points.
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-item__question">
+          What can I do with points?
+          <span class="faq-item__chevron">▾</span>
+        </button>
+        <div class="faq-item__answer">
+          <div class="faq-item__answer-inner">
+            Points are redeemable in the <strong>Points Shop</strong> for discount codes on your next
+            challenge purchase. They can't be withdrawn or used for anything else.
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-item__question">
+          Where can I track my points balance?
+          <span class="faq-item__chevron">▾</span>
+        </button>
+        <div class="faq-item__answer">
+          <div class="faq-item__answer-inner">
+            Open the <strong>Points &amp; Referrals</strong> tab to see your current balance, your full
+            points history, and the codes available to redeem.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── REFERRALS ── -->
+  <section class="hiw-section" id="sec-referrals">
+    <div class="hiw-section__header">
+      <span class="hiw-section__icon">🤝</span>
+      <h2 class="hiw-section__title">Referrals</h2>
+    </div>
+
+    <div class="faq-list">
+      <div class="faq-item">
+        <button class="faq-item__question">
+          How does the referral program work?
+          <span class="faq-item__chevron">▾</span>
+        </button>
+        <div class="faq-item__answer">
+          <div class="faq-item__answer-inner">
+            Every trader gets a unique referral code and shareable link. When someone you referred signs
+            up and their first challenge payment is confirmed by our team, you're awarded points
+            automatically.
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-item__question">
+          When do referral points land?
+          <span class="faq-item__chevron">▾</span>
+        </button>
+        <div class="faq-item__answer">
+          <div class="faq-item__answer-inner">
+            Only once — and exactly when — your referred trader's <strong>payment is confirmed</strong>.
+            Pending or rejected orders don't earn points.
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-item__question">
+          Where do I find my referral link?
+          <span class="faq-item__chevron">▾</span>
+        </button>
+        <div class="faq-item__answer">
+          <div class="faq-item__answer-inner">
+            Your referral code and copyable link live on the <strong>Points &amp; Referrals</strong> page,
+            along with a history of who you've referred and their status.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="hiw-cta">
+    <a href="support.html" class="btn btn--secondary btn--lg">Still have questions? Contact Support</a>
+  </div>
+
+</main>
+
+<script>
+  // ─── Telegram init ──────────────────────────────────────────────────────
+  const tg = window.Telegram?.WebApp;
+  if (tg) { tg.ready(); tg.expand(); tg.BackButton.show(); }
+  tg?.BackButton?.onClick(() => { window.location.href = 'dashboard.html'; });
+
+  const telegramId = tg?.initDataUnsafe?.user?.id ?? null;
+
+  // ─── GAS endpoint ───────────────────────────────────────────────────────
+  const GAS_URL = ''; // <-- paste your deployed GAS Web App URL here
+
+  // ─── DOM refs ───────────────────────────────────────────────────────────
+  const pageLoading       = document.getElementById('page-loading');
+  const mainContent       = document.getElementById('main-content');
+  const splitFirstInline  = document.getElementById('splitFirstInline');
+  const splitSecondInline = document.getElementById('splitSecondInline');
+  const walletBox         = document.getElementById('wallet-box');
+  const walletAddressEl   = document.getElementById('wallet-address');
+
+  // ─── Boot ───────────────────────────────────────────────────────────────
+  async function init() {
+    try {
+      await loadSettings();
+    } catch (err) {
+      console.error('Init error:', err);
+      // Static content still renders fine without dynamic values
+    } finally {
+      pageLoading.style.display = 'none';
+      mainContent.style.display = 'block';
+      bindAccordion();
+      bindJumpNav();
+    }
+  }
+
+  // ─── Load dynamic values from Settings ──────────────────────────────────
+  async function loadSettings() {
+    if (!GAS_URL) return;
+    const res = await gasGet({ action: 'getHowItWorksSettings' });
+
+    if (res.split_first)  splitFirstInline.textContent  = res.split_first + '%';
+    if (res.split_second) splitSecondInline.textContent = res.split_second + '%';
+    if (res.wallet_address) {
+      walletAddressEl.textContent = res.wallet_address;
+      walletBox.style.display = 'block';
+    }
+  }
+
+  // ─── FAQ accordion ──────────────────────────────────────────────────────
+  function bindAccordion() {
+    document.querySelectorAll('.faq-item').forEach(item => {
+      const question = item.querySelector('.faq-item__question');
+      const answer   = item.querySelector('.faq-item__answer');
+      const inner    = item.querySelector('.faq-item__answer-inner');
+
+      question.addEventListener('click', () => {
+        const isOpen = item.classList.contains('faq-item--open');
+
+        if (isOpen) {
+          item.classList.remove('faq-item--open');
+          answer.style.maxHeight = '0px';
+        } else {
+          item.classList.add('faq-item--open');
+          answer.style.maxHeight = inner.scrollHeight + 'px';
+        }
+
+        tg?.HapticFeedback?.selectionChanged();
+      });
+    });
+  }
+
+  // ─── Jump nav (scroll to section) ───────────────────────────────────────
+  function bindJumpNav() {
+    const chips    = document.querySelectorAll('.hiw-nav__chip');
+    const sections = Array.from(chips).map(c => document.getElementById(c.dataset.target));
+
+    chips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        const target = document.getElementById(chip.dataset.target);
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        tg?.HapticFeedback?.selectionChanged();
+      });
+    });
+
+    // Highlight active chip on scroll
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const idx = sections.indexOf(entry.target);
+          chips.forEach(c => c.classList.remove('hiw-nav__chip--active'));
+          if (idx !== -1) chips[idx].classList.add('hiw-nav__chip--active');
+        }
+      });
+    }, { rootMargin: '-20% 0px -70% 0px' });
+
+    sections.forEach(s => { if (s) observer.observe(s); });
+  }
+
+  // ─── GAS helper (GET — read-only, no auth needed) ───────────────────────
+  async function gasGet(params) {
+    const qs  = new URLSearchParams(params).toString();
+    const res = await fetch(GAS_URL + '?' + qs);
+    return res.json();
+  }
+
+  // ─── Kick off ───────────────────────────────────────────────────────────
+  init();
+</script>
+</body>
+</html>

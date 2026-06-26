@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NowFunded — Welcome</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    /* ── Onboarding-specific overrides ── */
+
+    body {
+      overflow: hidden;
+      height: 100dvh;
+    }
+
+    /* Full-screen carousel shell */
+    .ob-shell {
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+      background: var(--c-bg);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Skip sits top-right */
+    .ob-skip {
+      position: absolute;
+      top: calc(var(--sp-5) + env(safe-area-inset-top));
+      right: var(--sp-5);
+      z-index: 10;
+      background: none;
+      border: none;
+      color: var(--c-muted);
+      font-family: var(--font-ui);
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      padding: var(--sp-2) var(--sp-3);
+      border-radius: var(--r-pill);
+      transition: color var(--t-fast) var(--ease),
+                  background var(--t-fast) var(--ease);
+    }
+    .ob-skip:hover { color: var(--c-surface); background: var(--c-surface-ghost); }
+
+    /* Slide area */
+    .ob-slides {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .ob-slide {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: var(--sp-10) var(--sp-8);
+      text-align: center;
+      /* hidden by default */
+      opacity: 0;
+      pointer-events: none;
+      transform: translateX(40px);
+      transition: opacity 320ms var(--ease),
+                  transform 320ms var(--ease);
+    }
+
+    .ob-slide--active {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateX(0);
+    }
+
+    .ob-slide--exit {
+      opacity: 0;
+      transform: translateX(-40px);
+    }
+
+    /* Illustration area — phase-coloured glow ring behind icon */
+    .ob-icon-wrap {
+      position: relative;
+      width: 120px;
+      height: 120px;
+      margin-bottom: var(--sp-8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .ob-icon-wrap::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: var(--glow-color, rgba(201,123,74,.12));
+      filter: blur(18px);
+      transform: scale(1.15);
+    }
+
+    .ob-icon-wrap::after {
+      content: '';
+      position: absolute;
+      inset: 8px;
+      border-radius: 50%;
+      border: 1.5px solid var(--glow-color, rgba(201,123,74,.25));
+    }
+
+    .ob-icon {
+      font-size: 3.25rem;
+      line-height: 1;
+      position: relative;
+      z-index: 1;
+      /* Subtle float animation on active slide */
+      animation: none;
+    }
+
+    .ob-slide--active .ob-icon {
+      animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50%       { transform: translateY(-6px); }
+    }
+
+    /* Slide text */
+    .ob-title {
+      font-family: var(--font-display);
+      font-size: clamp(1.5rem, 6vw, 2rem);
+      font-weight: 600;
+      color: var(--c-surface);
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      margin-bottom: var(--sp-4);
+    }
+
+    .ob-desc {
+      font-size: 0.9375rem;
+      color: var(--c-muted);
+      line-height: 1.65;
+      max-width: 290px;
+    }
+
+    /* Highlight in description */
+    .ob-desc strong {
+      color: var(--c-surface);
+      font-weight: 600;
+    }
+
+    /* ── Footer ── */
+    .ob-footer {
+      flex-shrink: 0;
+      padding: var(--sp-4) var(--sp-6) var(--sp-8);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--sp-5);
+    }
+
+    /* Dots */
+    .ob-dots {
+      display: flex;
+      gap: var(--sp-2);
+      align-items: center;
+    }
+
+    .ob-dot {
+      height: 6px;
+      width: 6px;
+      border-radius: var(--r-pill);
+      background: rgba(139,134,128,.35);
+      border: none;
+      padding: 0;
+      cursor: pointer;
+      transition: width 260ms var(--ease),
+                  background 260ms var(--ease);
+    }
+
+    .ob-dot--active {
+      width: 24px;
+      background: var(--c-copper);
+    }
+
+    /* CTA row */
+    .ob-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      gap: var(--sp-4);
+    }
+
+    .ob-back {
+      background: none;
+      border: 1.5px solid var(--c-border);
+      color: var(--c-muted);
+      font-family: var(--font-ui);
+      font-size: 0.9375rem;
+      font-weight: 600;
+      padding: var(--sp-3) var(--sp-5);
+      border-radius: var(--r-md);
+      cursor: pointer;
+      transition: color var(--t-fast) var(--ease),
+                  border-color var(--t-fast) var(--ease);
+      flex-shrink: 0;
+    }
+    .ob-back:hover  { color: var(--c-surface); border-color: var(--c-muted); }
+    .ob-back:active { transform: scale(0.97); }
+
+    #btn-next {
+      flex: 1;
+    }
+
+    /* Slide-specific glow colours */
+    .ob-slide[data-slide="0"] { --glow-color: rgba(201,123,74,.15); }
+    .ob-slide[data-slide="1"] { --glow-color: rgba(45,92,74,.18); }
+    .ob-slide[data-slide="2"] { --glow-color: rgba(201,123,74,.18); }
+    .ob-slide[data-slide="3"] { --glow-color: rgba(61,140,107,.20); }
+
+    /* Loading overlay reuse */
+    #ob-loading {
+      position: fixed;
+      inset: 0;
+      background: var(--c-bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+      transition: opacity 400ms var(--ease);
+    }
+    #ob-loading.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* Error toast */
+    #ob-error {
+      position: fixed;
+      bottom: calc(var(--sp-8) + env(safe-area-inset-bottom));
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 800;
+      background: #1E2127;
+      border: 1px solid rgba(232,72,60,.4);
+      border-radius: var(--r-md);
+      color: #f07068;
+      padding: var(--sp-3) var(--sp-4);
+      font-size: 0.875rem;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--t-base) var(--ease);
+    }
+    #ob-error.visible { opacity: 1; }
+  </style>
+</head>
+<body>
+
+<!-- Loading state -->
+<div id="ob-loading">
+  <div class="spinner spinner--lg"></div>
+</div>
+
+<!-- Error toast -->
+<div id="ob-error" role="alert" aria-live="polite"></div>
+
+<!-- Onboarding shell -->
+<div class="ob-shell" id="ob-shell" aria-label="Onboarding">
+
+  <!-- Skip button -->
+  <button class="ob-skip" id="btn-skip" aria-label="Skip onboarding">Skip</button>
+
+  <!-- Slides -->
+  <div class="ob-slides" role="region" aria-label="Onboarding steps">
+
+    <!-- Slide 0: What is NowFunded -->
+    <div class="ob-slide ob-slide--active" data-slide="0" role="tabpanel" aria-label="Step 1 of 4">
+      <div class="ob-icon-wrap">
+        <span class="ob-icon" aria-hidden="true">⚡</span>
+      </div>
+      <h1 class="ob-title">Trade real capital.<br>Keep the profits.</h1>
+      <p class="ob-desc">
+        NowFunded is a <strong>prop trading firm</strong> that backs skilled traders.
+        Pass a two-phase challenge and we'll fund your live account — no personal capital at risk.
+      </p>
+    </div>
+
+    <!-- Slide 1: Challenge Phases -->
+    <div class="ob-slide" data-slide="1" role="tabpanel" aria-label="Step 2 of 4">
+      <div class="ob-icon-wrap">
+        <span class="ob-icon" aria-hidden="true">🎯</span>
+      </div>
+      <h1 class="ob-title">Two phases.<br>Prove your edge.</h1>
+      <p class="ob-desc">
+        Hit your <strong>profit target</strong> in Phase 1, then confirm consistency in Phase 2.
+        Stay within the max drawdown and you move forward — every progression is tracked right here.
+      </p>
+    </div>
+
+    <!-- Slide 2: Getting Funded -->
+    <div class="ob-slide" data-slide="2" role="tabpanel" aria-label="Step 3 of 4">
+      <div class="ob-icon-wrap">
+        <span class="ob-icon" aria-hidden="true">🏆</span>
+      </div>
+      <h1 class="ob-title">Get funded.<br>Go live.</h1>
+      <p class="ob-desc">
+        Pass both phases and we issue your <strong>live MT5 credentials</strong> directly in the app.
+        Your funded account is ready to trade — no paperwork, no delays.
+      </p>
+    </div>
+
+    <!-- Slide 3: Payouts & Points -->
+    <div class="ob-slide" data-slide="3" role="tabpanel" aria-label="Step 4 of 4">
+      <div class="ob-icon-wrap">
+        <span class="ob-icon" aria-hidden="true">💸</span>
+      </div>
+      <h1 class="ob-title">Request a payout.<br>Earn rewards.</h1>
+      <p class="ob-desc">
+        Request payouts straight from your dashboard. Refer friends and earn <strong>points</strong>
+        you can redeem for discounts on your next challenge. Your second payout unlocks a scale-up.
+      </p>
+    </div>
+
+  </div><!-- /.ob-slides -->
+
+  <!-- Footer: dots + actions -->
+  <footer class="ob-footer">
+    <div class="ob-dots" role="tablist" aria-label="Slide navigation">
+      <button class="ob-dot ob-dot--active" data-index="0" role="tab" aria-selected="true"  aria-label="Slide 1"></button>
+      <button class="ob-dot"               data-index="1" role="tab" aria-selected="false" aria-label="Slide 2"></button>
+      <button class="ob-dot"               data-index="2" role="tab" aria-selected="false" aria-label="Slide 3"></button>
+      <button class="ob-dot"               data-index="3" role="tab" aria-selected="false" aria-label="Slide 4"></button>
+    </div>
+
+    <div class="ob-actions">
+      <button class="ob-back" id="btn-back" style="visibility:hidden;" aria-label="Previous slide">Back</button>
+      <button class="btn btn--primary btn--lg" id="btn-next">Next</button>
+    </div>
+  </footer>
+
+</div><!-- /.ob-shell -->
+
+<script>
+  // ─── Telegram WebApp init ───────────────────────────────────────────────
+  const tg = window.Telegram?.WebApp;
+  if (tg) {
+    tg.ready();
+    tg.expand();
+    tg.BackButton.hide();
+  }
+
+  const telegramId = tg?.initDataUnsafe?.user?.id ?? null;
+
+  // ─── GAS endpoint (set to your deployed Web App URL) ───────────────────
+  const GAS_URL = 'https://script.google.com/macros/s/AKfycby2RKyxGv9sao0JPmEzzccjSlxt4HWSWm_ezA8Rr7-5tQm0gF43qmtPS1J-w7nWlRzj/exec'; // <-- paste your deployed GAS Web App URL here
+
+  // ─── State ──────────────────────────────────────────────────────────────
+  const TOTAL = 4;
+  let current = 0;
+  let completing = false;
+
+  // ─── DOM refs ───────────────────────────────────────────────────────────
+  const slides   = document.querySelectorAll('.ob-slide');
+  const dots     = document.querySelectorAll('.ob-dot');
+  const btnNext  = document.getElementById('btn-next');
+  const btnBack  = document.getElementById('btn-back');
+  const btnSkip  = document.getElementById('btn-skip');
+  const loading  = document.getElementById('ob-loading');
+  const errEl    = document.getElementById('ob-error');
+
+  // ─── Boot: hide loader once DOM is ready ───────────────────────────────
+  window.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => loading.classList.add('hidden'), 300);
+  });
+
+  // ─── Navigate to a slide index ─────────────────────────────────────────
+  function goTo(index) {
+    if (index < 0 || index >= TOTAL) return;
+
+    // Exit current
+    slides[current].classList.remove('ob-slide--active');
+    slides[current].classList.add('ob-slide--exit');
+    dots[current].classList.remove('ob-dot--active');
+    dots[current].setAttribute('aria-selected', 'false');
+
+    // After exit transition, clean up
+    const prev = current;
+    setTimeout(() => {
+      slides[prev].classList.remove('ob-slide--exit');
+    }, 320);
+
+    current = index;
+
+    // Enter new
+    slides[current].classList.add('ob-slide--active');
+    dots[current].classList.add('ob-dot--active');
+    dots[current].setAttribute('aria-selected', 'true');
+
+    // Button states
+    btnBack.style.visibility = current === 0 ? 'hidden' : 'visible';
+    btnNext.textContent      = current === TOTAL - 1 ? 'Get Started' : 'Next';
+
+    // Telegram haptic
+    tg?.HapticFeedback?.selectionChanged();
+  }
+
+  // ─── Complete onboarding ────────────────────────────────────────────────
+  async function completeOnboarding() {
+    if (completing) return;
+    completing = true;
+
+    btnNext.classList.add('btn--loading');
+    btnNext.disabled = true;
+    btnSkip.disabled = true;
+
+    try {
+      if (GAS_URL && telegramId) {
+        const res = await fetch(GAS_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'completeOnboarding', telegram_id: telegramId })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Unknown error');
+      }
+
+      // Success — navigate to dashboard
+      tg?.HapticFeedback?.notificationOccurred('success');
+      window.location.href = 'dashboard.html';
+
+    } catch (err) {
+      console.error('Onboarding error:', err);
+      showError('Something went wrong. Please try again.');
+      btnNext.classList.remove('btn--loading');
+      btnNext.disabled = false;
+      btnSkip.disabled = false;
+      completing = false;
+    }
+  }
+
+  // ─── Error toast ────────────────────────────────────────────────────────
+  let errTimer;
+  function showError(msg) {
+    errEl.textContent = msg;
+    errEl.classList.add('visible');
+    clearTimeout(errTimer);
+    errTimer = setTimeout(() => errEl.classList.remove('visible'), 4000);
+  }
+
+  // ─── Event listeners ────────────────────────────────────────────────────
+  btnNext.addEventListener('click', () => {
+    if (current < TOTAL - 1) {
+      goTo(current + 1);
+    } else {
+      completeOnboarding();
+    }
+  });
+
+  btnBack.addEventListener('click', () => goTo(current - 1));
+
+  btnSkip.addEventListener('click', () => completeOnboarding());
+
+  dots.forEach(dot => {
+    dot.addEventListener('click', () => {
+      const idx = parseInt(dot.dataset.index, 10);
+      if (idx !== current) goTo(idx);
+    });
+  });
+
+  // ─── Swipe gesture support ──────────────────────────────────────────────
+  let touchStartX = 0;
+  const slidesEl = document.querySelector('.ob-slides');
+
+  slidesEl.addEventListener('touchstart', e => {
+    touchStartX = e.changedTouches[0].clientX;
+  }, { passive: true });
+
+  slidesEl.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    if (Math.abs(dx) < 40) return; // ignore small swipes
+    if (dx < 0 && current < TOTAL - 1) goTo(current + 1);
+    if (dx > 0 && current > 0)         goTo(current - 1);
+  }, { passive: true });
+
+  // ─── Keyboard nav ───────────────────────────────────────────────────────
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight') btnNext.click();
+    if (e.key === 'ArrowLeft' && current > 0) goTo(current - 1);
+  });
+</script>
+</body>
+</html>

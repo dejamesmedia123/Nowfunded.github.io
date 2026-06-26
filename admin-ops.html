@@ -1,0 +1,1282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NowFunded Admin — Daily Operations</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* ── Mobile sidebar toggle ── */
+    .admin-menu-btn {
+      display: none;
+      background: none;
+      border: 1px solid var(--c-border);
+      color: var(--c-surface);
+      border-radius: var(--r-md);
+      padding: var(--sp-2) var(--sp-3);
+      cursor: pointer;
+      font-size: 1rem;
+    }
+
+    @media (max-width: 860px) {
+      .admin-menu-btn { display: inline-flex; }
+      .admin-sidebar-backdrop {
+        position: fixed; inset: 0; z-index: 199;
+        background: rgba(0,0,0,.5);
+        opacity: 0; pointer-events: none;
+        transition: opacity var(--t-base) var(--ease);
+      }
+      .admin-sidebar-backdrop--open { opacity: 1; pointer-events: auto; }
+    }
+
+    /* ── View visibility ── */
+    .admin-view { display: none; }
+    .admin-view--active { display: block; }
+
+    /* ── Sidebar footer ── */
+    .admin-sidebar__footer {
+      margin-top: auto;
+      padding: var(--sp-4);
+      border-top: 1px solid var(--c-border);
+    }
+
+    .admin-switch-link {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+      font-size: 0.8125rem;
+      color: var(--c-muted);
+      padding: var(--sp-2) var(--sp-2);
+      border-radius: var(--r-md);
+      transition: color var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
+    }
+    .admin-switch-link:hover { color: var(--c-copper); background: var(--c-surface-ghost); text-decoration: none; }
+
+    .admin-logout-link {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+      font-size: 0.8125rem;
+      color: var(--c-muted);
+      padding: var(--sp-2) var(--sp-2);
+      border-radius: var(--r-md);
+      cursor: pointer;
+      background: none;
+      border: none;
+      width: 100%;
+      text-align: left;
+      transition: color var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
+    }
+    .admin-logout-link:hover { color: var(--c-red); background: var(--c-surface-ghost); }
+
+    /* ── Queue cards (Orders / Payouts) ── */
+    .queue-card {
+      background: #141619;
+      border: 1px solid var(--c-border);
+      border-radius: var(--r-lg);
+      padding: var(--sp-5);
+      margin-bottom: var(--sp-4);
+    }
+
+    .queue-card__header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: var(--sp-3);
+      gap: var(--sp-4);
+    }
+
+    .queue-card__title {
+      font-family: var(--font-display);
+      font-size: 1.0625rem;
+      font-weight: 600;
+      color: var(--c-surface);
+    }
+
+    .queue-card__meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--sp-4);
+      margin-bottom: var(--sp-4);
+    }
+
+    .queue-card__field {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .queue-card__field-label {
+      font-size: 0.6875rem;
+      font-weight: 600;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--c-muted);
+    }
+
+    .queue-card__field-value {
+      font-size: 0.9375rem;
+      font-weight: 600;
+      color: var(--c-surface);
+    }
+
+    .queue-card__field-value--mono {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 0.8125rem;
+      color: var(--c-muted);
+    }
+
+    .queue-card__actions {
+      display: flex;
+      gap: var(--sp-3);
+      padding-top: var(--sp-3);
+      border-top: 1px solid var(--c-border);
+    }
+
+    /* ── Accounts table action row ── */
+    .account-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--sp-2);
+    }
+
+    /* ── Support chat panel ── */
+    .support-layout {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: var(--sp-5);
+      height: calc(100vh - 120px);
+      min-height: 500px;
+    }
+
+    @media (max-width: 860px) {
+      .support-layout { grid-template-columns: 1fr; height: auto; }
+      .support-chat-panel { display: none; }
+      .support-chat-panel--active { display: flex !important; }
+      .support-thread-list--hidden { display: none; }
+    }
+
+    .support-thread-list {
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-2);
+    }
+
+    .support-thread-item {
+      background: #141619;
+      border: 1px solid var(--c-border);
+      border-radius: var(--r-md);
+      padding: var(--sp-4);
+      cursor: pointer;
+      transition: border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
+    }
+    .support-thread-item:hover { border-color: rgba(201,123,74,.4); }
+    .support-thread-item--active { border-color: var(--c-copper); background: rgba(201,123,74,.06); }
+
+    .support-thread-item__name {
+      font-weight: 600;
+      font-size: 0.9375rem;
+      color: var(--c-surface);
+      margin-bottom: 2px;
+    }
+
+    .support-thread-item__meta {
+      font-size: 0.75rem;
+      color: var(--c-muted);
+    }
+
+    .support-chat-panel {
+      display: flex;
+      flex-direction: column;
+      background: #141619;
+      border: 1px solid var(--c-border);
+      border-radius: var(--r-lg);
+      overflow: hidden;
+    }
+
+    .support-chat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--sp-4) var(--sp-5);
+      border-bottom: 1px solid var(--c-border);
+      flex-shrink: 0;
+    }
+
+    .support-chat-header__name {
+      font-weight: 600;
+      font-size: 0.9375rem;
+      color: var(--c-surface);
+    }
+
+    .support-chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--sp-5);
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-3);
+    }
+
+    .chat-bubble {
+      max-width: 75%;
+      padding: var(--sp-3) var(--sp-4);
+      border-radius: var(--r-md);
+      font-size: 0.9375rem;
+      line-height: 1.5;
+    }
+
+    .chat-bubble--trader {
+      align-self: flex-start;
+      background: rgba(245,243,238,.08);
+      color: var(--c-surface);
+      border-bottom-left-radius: var(--r-sm);
+    }
+
+    .chat-bubble--admin {
+      align-self: flex-end;
+      background: rgba(45,92,74,.25);
+      color: var(--c-surface);
+      border-bottom-right-radius: var(--r-sm);
+    }
+
+    .chat-bubble__meta {
+      font-size: 0.6875rem;
+      color: var(--c-muted);
+      margin-top: 4px;
+    }
+
+    .support-chat-input {
+      padding: var(--sp-4) var(--sp-5);
+      border-top: 1px solid var(--c-border);
+      display: flex;
+      gap: var(--sp-3);
+      align-items: flex-end;
+      flex-shrink: 0;
+    }
+
+    .support-chat-input textarea {
+      flex: 1;
+      resize: none;
+      min-height: 44px;
+      max-height: 120px;
+    }
+
+    .support-empty-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      gap: var(--sp-2);
+      color: var(--c-muted);
+      flex: 1;
+    }
+
+    /* ── Skeleton bars ── */
+    .skeleton-bar {
+      height: 14px;
+      border-radius: 4px;
+      background: linear-gradient(90deg,
+        rgba(255,255,255,.04) 25%, rgba(255,255,255,.08) 50%, rgba(255,255,255,.04) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+    }
+    @keyframes shimmer {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    .table-skeleton-row td { padding: var(--sp-4); }
+
+    /* ── Credentials modal ── */
+    .modal__footer {
+      display: flex;
+      gap: var(--sp-3);
+      margin-top: var(--sp-6);
+    }
+    .modal__footer .btn { flex: 1; }
+
+    /* ── Issue creds inline form ── */
+    .creds-form-inline {
+      display: none;
+      flex-direction: column;
+      gap: var(--sp-3);
+      padding-top: var(--sp-4);
+      border-top: 1px solid var(--c-border);
+      margin-top: var(--sp-3);
+    }
+    .creds-form-inline--open { display: flex; }
+  </style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div class="loading-overlay" id="page-loading">
+  <div class="spinner spinner--lg"></div>
+</div>
+
+<!-- Mobile sidebar backdrop -->
+<div class="admin-sidebar-backdrop" id="sidebar-backdrop"></div>
+
+<div class="admin-shell" id="admin-shell" style="display:none;">
+
+  <!-- ── Sidebar ── -->
+  <aside class="admin-sidebar" id="admin-sidebar">
+    <div class="admin-sidebar__logo">Now<span>Funded</span></div>
+
+    <div class="admin-sidebar__section-label">Daily Operations</div>
+    <nav>
+      <a class="admin-nav__item admin-nav__item--active" data-route="orders">
+        <span class="admin-nav__icon">📥</span> Orders
+        <span class="admin-nav__badge" id="badge-orders" style="display:none;"></span>
+      </a>
+      <a class="admin-nav__item" data-route="accounts">
+        <span class="admin-nav__icon">🖥️</span> Accounts
+      </a>
+      <a class="admin-nav__item" data-route="payouts">
+        <span class="admin-nav__icon">💸</span> Payouts
+        <span class="admin-nav__badge" id="badge-payouts" style="display:none;"></span>
+      </a>
+      <a class="admin-nav__item" data-route="support">
+        <span class="admin-nav__icon">💬</span> Support
+        <span class="admin-nav__badge" id="badge-support" style="display:none;"></span>
+      </a>
+    </nav>
+
+    <div class="admin-sidebar__footer">
+      <a class="admin-switch-link" href="admin-manage.html">
+        <span>⇄</span> Switch to Setup &amp; Mgmt
+      </a>
+      <button class="admin-logout-link" id="btn-logout">
+        <span>⏏</span> Log out
+      </button>
+    </div>
+  </aside>
+
+  <!-- ── Main ── -->
+  <main class="admin-main">
+    <header class="admin-topbar">
+      <div class="row row--gap-3">
+        <button class="admin-menu-btn" id="btn-menu" aria-label="Open menu">☰</button>
+        <span class="admin-topbar__title" id="topbar-title">Orders</span>
+      </div>
+    </header>
+
+    <div class="admin-page">
+
+      <!-- ════════════════════════ ORDERS VIEW ════════════════════════ -->
+      <section class="admin-view admin-view--active" id="view-orders">
+        <p class="text-muted text-sm mb-6">Confirm or reject pending crypto payments.</p>
+
+        <div id="orders-skeleton">
+          <div class="queue-card"><div class="skeleton-bar" style="width:40%;margin-bottom:12px;"></div><div class="skeleton-bar" style="width:80%;"></div></div>
+          <div class="queue-card"><div class="skeleton-bar" style="width:40%;margin-bottom:12px;"></div><div class="skeleton-bar" style="width:80%;"></div></div>
+        </div>
+
+        <div id="orders-list"></div>
+
+        <div class="empty-state" id="orders-empty" style="display:none;">
+          <div class="empty-state__icon">📥</div>
+          <p class="empty-state__title">No pending orders</p>
+          <p class="empty-state__desc">All orders have been reviewed. Check back soon.</p>
+        </div>
+      </section>
+
+      <!-- ════════════════════════ ACCOUNTS VIEW ════════════════════════ -->
+      <section class="admin-view" id="view-accounts">
+        <div class="filter-bar" style="margin-bottom:var(--sp-5);">
+          <select class="form-select" id="accounts-phase-filter">
+            <option value="all">All phases</option>
+            <option value="1">Phase 1</option>
+            <option value="2">Phase 2</option>
+            <option value="funded">Funded</option>
+            <option value="scaled">Scaled</option>
+          </select>
+          <select class="form-select" id="accounts-status-filter">
+            <option value="all">All statuses</option>
+            <option value="pending_credentials">Pending credentials</option>
+            <option value="active">Active</option>
+            <option value="passed">Passed</option>
+            <option value="breached">Breached</option>
+            <option value="blown">Blown</option>
+          </select>
+        </div>
+
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Account ID</th>
+                <th>Trader</th>
+                <th>Phase</th>
+                <th>Status</th>
+                <th>Issued</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="accounts-tbody">
+              <tr class="table-skeleton-row"><td colspan="6"><div class="skeleton-bar"></div></td></tr>
+              <tr class="table-skeleton-row"><td colspan="6"><div class="skeleton-bar"></div></td></tr>
+              <tr class="table-skeleton-row"><td colspan="6"><div class="skeleton-bar"></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="empty-state" id="accounts-empty" style="display:none;">
+          <div class="empty-state__icon">🖥️</div>
+          <p class="empty-state__title">No accounts found</p>
+          <p class="empty-state__desc">No accounts match the current filters.</p>
+        </div>
+      </section>
+
+      <!-- ════════════════════════ PAYOUTS VIEW ════════════════════════ -->
+      <section class="admin-view" id="view-payouts">
+        <p class="text-muted text-sm mb-6">Review and approve pending payout requests.</p>
+
+        <div id="payouts-skeleton">
+          <div class="queue-card"><div class="skeleton-bar" style="width:40%;margin-bottom:12px;"></div><div class="skeleton-bar" style="width:80%;"></div></div>
+          <div class="queue-card"><div class="skeleton-bar" style="width:40%;margin-bottom:12px;"></div><div class="skeleton-bar" style="width:80%;"></div></div>
+        </div>
+
+        <div id="payouts-list"></div>
+
+        <div class="empty-state" id="payouts-empty" style="display:none;">
+          <div class="empty-state__icon">💸</div>
+          <p class="empty-state__title">No pending payouts</p>
+          <p class="empty-state__desc">All payout requests have been resolved.</p>
+        </div>
+      </section>
+
+      <!-- ════════════════════════ SUPPORT VIEW ════════════════════════ -->
+      <section class="admin-view" id="view-support">
+        <div class="support-layout">
+
+          <!-- Thread list -->
+          <div class="support-thread-list" id="support-thread-list">
+            <p class="text-muted text-sm mb-4">Open threads</p>
+            <div id="threads-skeleton">
+              <div class="support-thread-item"><div class="skeleton-bar" style="width:60%;margin-bottom:8px;"></div><div class="skeleton-bar" style="width:40%;"></div></div>
+              <div class="support-thread-item"><div class="skeleton-bar" style="width:60%;margin-bottom:8px;"></div><div class="skeleton-bar" style="width:40%;"></div></div>
+            </div>
+            <div id="threads-list"></div>
+            <div class="empty-state" id="support-empty" style="display:none;">
+              <div class="empty-state__icon">💬</div>
+              <p class="empty-state__title">No open threads</p>
+              <p class="empty-state__desc">All support tickets are closed.</p>
+            </div>
+          </div>
+
+          <!-- Chat panel -->
+          <div class="support-chat-panel" id="support-chat-panel">
+            <div class="support-empty-panel" id="support-chat-empty">
+              <span style="font-size:2rem;opacity:.4;">💬</span>
+              <p>Select a thread to view the conversation</p>
+            </div>
+
+            <div id="support-chat-content" style="display:none;flex-direction:column;height:100%;">
+              <div class="support-chat-header">
+                <div>
+                  <div class="support-chat-header__name" id="chat-header-name">—</div>
+                  <div class="text-xs text-muted" id="chat-header-meta">—</div>
+                </div>
+                <button class="btn btn--ghost btn--sm" id="btn-close-thread">Close Thread</button>
+              </div>
+
+              <div class="support-chat-messages" id="chat-messages"></div>
+
+              <div class="support-chat-input">
+                <textarea
+                  class="form-textarea form-textarea--light"
+                  id="chat-reply-input"
+                  placeholder="Type a reply…"
+                  rows="2"
+                ></textarea>
+                <button class="btn btn--primary" id="btn-send-reply">Send</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+    </div><!-- /.admin-page -->
+  </main>
+</div><!-- /.admin-shell -->
+
+<!-- ── Issue credentials modal ── -->
+<div class="modal-overlay modal-overlay--centered" id="creds-modal-overlay">
+  <div class="modal">
+    <button class="modal__close" id="creds-modal-close" aria-label="Close">✕</button>
+    <h2 class="modal__title">Issue MT5 Credentials</h2>
+    <p class="text-muted text-sm mb-6" id="creds-modal-account-label">Account —</p>
+
+    <div class="stack stack--4" id="creds-form">
+      <input type="hidden" id="cf-account-id" />
+
+      <div class="form-group">
+        <label class="form-label" for="cf-login">MT5 Login</label>
+        <input type="text" class="form-input form-input--light" id="cf-login" placeholder="e.g. 10001234" required />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="cf-password">MT5 Password</label>
+        <input type="text" class="form-input form-input--light" id="cf-password" placeholder="e.g. Abc123!" required />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="cf-server">Server</label>
+        <input type="text" class="form-input form-input--light" id="cf-server" placeholder="e.g. BrokerName-Live" required />
+      </div>
+
+      <div class="modal__footer">
+        <button class="btn btn--ghost" id="creds-modal-cancel">Cancel</button>
+        <button class="btn btn--primary" id="btn-issue-creds">Issue Credentials</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────────────
+  // SESSION CHECK
+  // ─────────────────────────────────────────────────────────────────────
+  const sessionToken = localStorage.getItem('nf_admin_session');
+  if (!sessionToken) {
+    window.location.href = 'admin-login.html';
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // GAS endpoint — paste your deployed Web App URL here
+  // ─────────────────────────────────────────────────────────────────────
+  const GAS_URL = 'https://script.google.com/macros/s/AKfycbyAXxehDNrO_VeOTuCzh952YzVHwydkMZLr51wfvLVajOBDIt-DznnT7QaEAsakrqAW/exec'; // <-- paste GAS Web App URL
+
+  // ─────────────────────────────────────────────────────────────────────
+  // STATE
+  // ─────────────────────────────────────────────────────────────────────
+  let orders            = [];
+  let accounts          = [];
+  let payouts           = [];
+  let threads           = [];
+  let activeThreadId    = null;
+  let currentRoute      = 'orders';
+  let pollInterval      = null;
+
+  // ─────────────────────────────────────────────────────────────────────
+  // DOM refs
+  // ─────────────────────────────────────────────────────────────────────
+  const pageLoading    = document.getElementById('page-loading');
+  const adminShell     = document.getElementById('admin-shell');
+  const topbarTitle    = document.getElementById('topbar-title');
+  const sidebar        = document.getElementById('admin-sidebar');
+  const sidebarBackdrop= document.getElementById('sidebar-backdrop');
+  const btnMenu        = document.getElementById('btn-menu');
+  const navItems       = document.querySelectorAll('.admin-nav__item');
+  const views          = document.querySelectorAll('.admin-view');
+
+  const ROUTE_TITLES = { orders: 'Orders', accounts: 'Accounts', payouts: 'Payouts', support: 'Support' };
+
+  // ─────────────────────────────────────────────────────────────────────
+  // ROUTING
+  // ─────────────────────────────────────────────────────────────────────
+  function getRouteFromHash() {
+    const hash = window.location.hash.replace('#/', '');
+    return ROUTE_TITLES[hash] ? hash : 'orders';
+  }
+
+  function navigate(route) {
+    currentRoute = route;
+    window.location.hash = '#/' + route;
+    renderRoute();
+  }
+
+  function renderRoute() {
+    views.forEach(v => v.classList.toggle('admin-view--active', v.id === 'view-' + currentRoute));
+    navItems.forEach(n => n.classList.toggle('admin-nav__item--active', n.dataset.route === currentRoute));
+    topbarTitle.textContent = ROUTE_TITLES[currentRoute];
+    closeSidebar();
+
+    if (currentRoute === 'orders')   loadOrders();
+    if (currentRoute === 'accounts') loadAccounts();
+    if (currentRoute === 'payouts')  loadPayouts();
+    if (currentRoute === 'support')  loadThreads();
+  }
+
+  navItems.forEach(item => {
+    item.addEventListener('click', () => navigate(item.dataset.route));
+  });
+
+  window.addEventListener('hashchange', () => {
+    currentRoute = getRouteFromHash();
+    renderRoute();
+  });
+
+  // ─────────────────────────────────────────────────────────────────────
+  // MOBILE SIDEBAR
+  // ─────────────────────────────────────────────────────────────────────
+  function openSidebar()  { sidebar.classList.add('admin-sidebar--open'); sidebarBackdrop.classList.add('admin-sidebar-backdrop--open'); }
+  function closeSidebar() { sidebar.classList.remove('admin-sidebar--open'); sidebarBackdrop.classList.remove('admin-sidebar-backdrop--open'); }
+  btnMenu.addEventListener('click', openSidebar);
+  sidebarBackdrop.addEventListener('click', closeSidebar);
+
+  // ─────────────────────────────────────────────────────────────────────
+  // LOGOUT
+  // ─────────────────────────────────────────────────────────────────────
+  document.getElementById('btn-logout').addEventListener('click', () => {
+    clearInterval(pollInterval);
+    localStorage.removeItem('nf_admin_session');
+    window.location.href = 'admin-login.html';
+  });
+
+  // ─────────────────────────────────────────────────────────────────────
+  // BADGE POLL (every 30s)
+  // ─────────────────────────────────────────────────────────────────────
+  async function refreshBadges() {
+    try {
+      const res = await gasPost({ action: 'getOpsCounts', session: sessionToken });
+      setBadge('badge-orders',  res.orders_pending  || 0);
+      setBadge('badge-payouts', res.payouts_pending || 0);
+      setBadge('badge-support', res.support_open   || 0);
+    } catch (_) { /* silently ignore poll errors */ }
+  }
+
+  function setBadge(id, count) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (count > 0) {
+      el.textContent = count;
+      el.style.display = 'inline-flex';
+    } else {
+      el.style.display = 'none';
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // ORDERS
+  // ═══════════════════════════════════════════════════════════════════
+  const ordersSkeleton = document.getElementById('orders-skeleton');
+  const ordersList     = document.getElementById('orders-list');
+  const ordersEmpty    = document.getElementById('orders-empty');
+
+  async function loadOrders() {
+    ordersSkeleton.style.display = 'block';
+    ordersList.innerHTML = '';
+    ordersEmpty.style.display = 'none';
+
+    try {
+      const res = await gasPost({ action: 'getOrdersQueue', session: sessionToken });
+      orders = res.orders || [];
+      renderOrders();
+    } catch (err) {
+      showToast('error', '⚠️', 'Could not load orders.');
+    } finally {
+      ordersSkeleton.style.display = 'none';
+    }
+  }
+
+  function renderOrders() {
+    if (orders.length === 0) {
+      ordersEmpty.style.display = 'flex';
+      ordersList.innerHTML = '';
+      return;
+    }
+    ordersEmpty.style.display = 'none';
+    ordersList.innerHTML = orders.map(o => `
+      <div class="queue-card" data-order-id="${escHtml(o.order_id)}">
+        <div class="queue-card__header">
+          <div>
+            <div class="queue-card__title">@${escHtml(o.username || o.telegram_id)}</div>
+            <div class="text-sm text-muted">${formatDate(o.created_at)}</div>
+          </div>
+          <span class="badge badge--pending">Pending</span>
+        </div>
+        <div class="queue-card__meta">
+          <div class="queue-card__field">
+            <span class="queue-card__field-label">Plan</span>
+            <span class="queue-card__field-value">${escHtml(o.plan_name || o.plan_id)}</span>
+          </div>
+          <div class="queue-card__field">
+            <span class="queue-card__field-label">Amount</span>
+            <span class="queue-card__field-value">$${formatNumber(o.price_paid)}</span>
+          </div>
+          ${o.discount_code ? `
+          <div class="queue-card__field">
+            <span class="queue-card__field-label">Discount</span>
+            <span class="queue-card__field-value">${escHtml(o.discount_code)} (−$${formatNumber(o.discount_amount)})</span>
+          </div>` : ''}
+          <div class="queue-card__field">
+            <span class="queue-card__field-label">Payment Ref</span>
+            <span class="queue-card__field-value queue-card__field-value--mono">${escHtml(o.payment_reference)}</span>
+          </div>
+        </div>
+        <div class="queue-card__actions">
+          <button class="btn btn--primary btn--sm btn-confirm-order" data-order-id="${escHtml(o.order_id)}">✓ Confirm</button>
+          <button class="btn btn--danger btn--sm btn-reject-order" data-order-id="${escHtml(o.order_id)}">✕ Reject</button>
+        </div>
+      </div>
+    `).join('');
+
+    ordersList.querySelectorAll('.btn-confirm-order').forEach(btn => {
+      btn.addEventListener('click', () => confirmOrder(btn.dataset.orderId, btn));
+    });
+    ordersList.querySelectorAll('.btn-reject-order').forEach(btn => {
+      btn.addEventListener('click', () => rejectOrder(btn.dataset.orderId, btn));
+    });
+  }
+
+  async function confirmOrder(orderId, btn) {
+    if (!confirm('Confirm this order and create the Phase 1 account?')) return;
+    setLoading(btn, true);
+    try {
+      const res = await gasPost({ action: 'confirmOrder', order_id: orderId, session: sessionToken });
+      if (!res.success) throw new Error(res.error || 'Failed.');
+      showToast('success', '✅', 'Order confirmed. Trader notified.');
+      orders = orders.filter(o => o.order_id !== orderId);
+      renderOrders();
+      refreshBadges();
+    } catch (err) {
+      showToast('error', '⚠️', err.message || 'Could not confirm order.');
+    } finally {
+      setLoading(btn, false);
+    }
+  }
+
+  async function rejectOrder(orderId, btn) {
+    if (!confirm('Reject this order? The trader will be notified.')) return;
+    setLoading(btn, true);
+    try {
+      const res = await gasPost({ action: 'rejectOrder', order_id: orderId, session: sessionToken });
+      if (!res.success) throw new Error(res.error || 'Failed.');
+      showToast('success', '✅', 'Order rejected. Trader notified.');
+      orders = orders.filter(o => o.order_id !== orderId);
+      renderOrders();
+      refreshBadges();
+    } catch (err) {
+      showToast('error', '⚠️', err.message || 'Could not reject order.');
+    } finally {
+      setLoading(btn, false);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // ACCOUNTS
+  // ═══════════════════════════════════════════════════════════════════
+  const accountsTbody      = document.getElementById('accounts-tbody');
+  const accountsEmpty      = document.getElementById('accounts-empty');
+  const accountsPhaseFilter  = document.getElementById('accounts-phase-filter');
+  const accountsStatusFilter = document.getElementById('accounts-status-filter');
+
+  accountsPhaseFilter.addEventListener('change', renderAccounts);
+  accountsStatusFilter.addEventListener('change', renderAccounts);
+
+  async function loadAccounts() {
+    accountsTbody.innerHTML = `
+      <tr class="table-skeleton-row"><td colspan="6"><div class="skeleton-bar"></div></td></tr>
+      <tr class="table-skeleton-row"><td colspan="6"><div class="skeleton-bar"></div></td></tr>
+      <tr class="table-skeleton-row"><td colspan="6"><div class="skeleton-bar"></div></td></tr>
+    `;
+    accountsEmpty.style.display = 'none';
+
+    try {
+      const res = await gasPost({ action: 'getAccounts', session: sessionToken });
+      accounts = res.accounts || [];
+      renderAccounts();
+    } catch (err) {
+      showToast('error', '⚠️', 'Could not load accounts.');
+    }
+  }
+
+  function renderAccounts() {
+    const phaseFilter  = accountsPhaseFilter.value;
+    const statusFilter = accountsStatusFilter.value;
+
+    const filtered = accounts.filter(a => {
+      const phaseOk  = phaseFilter  === 'all' || String(a.phase) === phaseFilter;
+      const statusOk = statusFilter === 'all' || a.status === statusFilter;
+      return phaseOk && statusOk;
+    });
+
+    if (filtered.length === 0) {
+      accountsTbody.innerHTML = '';
+      accountsEmpty.style.display = 'flex';
+      return;
+    }
+    accountsEmpty.style.display = 'none';
+
+    accountsTbody.innerHTML = filtered.map(a => `
+      <tr>
+        <td class="mono">${escHtml(a.account_id)}</td>
+        <td>@${escHtml(a.username || a.telegram_id)}</td>
+        <td>${escHtml(String(a.phase))}</td>
+        <td><span class="badge badge--${a.status}">${a.status.replace(/_/g,' ')}</span></td>
+        <td>${a.issued_at ? formatDate(a.issued_at) : '—'}</td>
+        <td>
+          <div class="account-actions">
+            ${a.status === 'pending_credentials' ? `
+              <button class="btn btn--primary btn--sm btn-issue-creds"
+                data-account-id="${escHtml(a.account_id)}"
+                data-label="Phase ${escHtml(String(a.phase))} · ${escHtml(a.account_id)}">Issue Creds</button>
+            ` : ''}
+            ${(a.status === 'active' && (a.phase === 1 || a.phase === '1' || a.phase === 2 || a.phase === '2')) ? `
+              <button class="btn btn--secondary btn--sm btn-mark-passed" data-account-id="${escHtml(a.account_id)}">Mark Passed</button>
+              <button class="btn btn--ghost btn--sm btn-mark-breached" data-account-id="${escHtml(a.account_id)}">Breach</button>
+            ` : ''}
+            ${(a.status === 'active' && (a.phase === 'funded' || a.phase === 'scaled')) ? `
+              <button class="btn btn--secondary btn--sm btn-mark-scaled" data-account-id="${escHtml(a.account_id)}">Scale Up</button>
+              <button class="btn btn--danger btn--sm btn-mark-blown" data-account-id="${escHtml(a.account_id)}">Mark Blown</button>
+            ` : ''}
+          </div>
+        </td>
+      </tr>
+    `).join('');
+
+    // Issue credentials
+    accountsTbody.querySelectorAll('.btn-issue-creds').forEach(btn => {
+      btn.addEventListener('click', () => openCredsModal(btn.dataset.accountId, btn.dataset.label));
+    });
+
+    // Mark passed
+    accountsTbody.querySelectorAll('.btn-mark-passed').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Mark this account as passed and create the next phase?')) return;
+        await updateAccountStatus(btn.dataset.accountId, 'passed', btn);
+      });
+    });
+
+    // Mark breached
+    accountsTbody.querySelectorAll('.btn-mark-breached').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Mark this account as breached? The trader will be notified and the fee is lost.')) return;
+        await updateAccountStatus(btn.dataset.accountId, 'breached', btn);
+      });
+    });
+
+    // Mark scaled
+    accountsTbody.querySelectorAll('.btn-mark-scaled').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Mark this account as scaled?')) return;
+        await updateAccountStatus(btn.dataset.accountId, 'scaled', btn);
+      });
+    });
+
+    // Mark blown
+    accountsTbody.querySelectorAll('.btn-mark-blown').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Mark this funded account as blown? A 35% fee refund in points may be issued if the toggle is on.')) return;
+        await updateAccountStatus(btn.dataset.accountId, 'blown', btn);
+      });
+    });
+  }
+
+  async function updateAccountStatus(accountId, status, btn) {
+    setLoading(btn, true);
+    try {
+      const res = await gasPost({ action: 'updateAccountStatus', account_id: accountId, status, session: sessionToken });
+      if (!res.success) throw new Error(res.error || 'Update failed.');
+      showToast('success', '✅', `Account marked as ${status}. Trader notified.`);
+      await loadAccounts();
+    } catch (err) {
+      showToast('error', '⚠️', err.message || 'Could not update account.');
+      setLoading(btn, false);
+    }
+  }
+
+  // ── Credentials modal ──
+  const credsModalOverlay = document.getElementById('creds-modal-overlay');
+
+  function openCredsModal(accountId, label) {
+    document.getElementById('cf-account-id').value = accountId;
+    document.getElementById('creds-modal-account-label').textContent = 'Account: ' + label;
+    document.getElementById('cf-login').value    = '';
+    document.getElementById('cf-password').value = '';
+    document.getElementById('cf-server').value   = '';
+    credsModalOverlay.classList.add('modal-overlay--open');
+  }
+
+  document.getElementById('creds-modal-close').addEventListener('click', closeCredsModal);
+  document.getElementById('creds-modal-cancel').addEventListener('click', closeCredsModal);
+  function closeCredsModal() { credsModalOverlay.classList.remove('modal-overlay--open'); }
+
+  document.getElementById('btn-issue-creds').addEventListener('click', async () => {
+    const accountId = document.getElementById('cf-account-id').value;
+    const login     = document.getElementById('cf-login').value.trim();
+    const password  = document.getElementById('cf-password').value.trim();
+    const server    = document.getElementById('cf-server').value.trim();
+
+    if (!login || !password || !server) {
+      showToast('error', '⚠️', 'Please fill in all credential fields.');
+      return;
+    }
+
+    const btn = document.getElementById('btn-issue-creds');
+    setLoading(btn, true);
+
+    try {
+      const res = await gasPost({
+        action: 'issueCredentials',
+        account_id: accountId,
+        mt5_login: login,
+        mt5_password: password,
+        mt5_server: server,
+        session: sessionToken,
+      });
+      if (!res.success) throw new Error(res.error || 'Failed.');
+      closeCredsModal();
+      showToast('success', '✅', 'Credentials issued. Trader notified.');
+      await loadAccounts();
+    } catch (err) {
+      showToast('error', '⚠️', err.message || 'Could not issue credentials.');
+    } finally {
+      setLoading(btn, false);
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // PAYOUTS
+  // ═══════════════════════════════════════════════════════════════════
+  const payoutsSkeleton = document.getElementById('payouts-skeleton');
+  const payoutsList     = document.getElementById('payouts-list');
+  const payoutsEmpty    = document.getElementById('payouts-empty');
+
+  async function loadPayouts() {
+    payoutsSkeleton.style.display = 'block';
+    payoutsList.innerHTML = '';
+    payoutsEmpty.style.display = 'none';
+
+    try {
+      const res = await gasPost({ action: 'getPayoutsQueue', session: sessionToken });
+      payouts = res.payouts || [];
+      renderPayouts();
+    } catch (err) {
+      showToast('error', '⚠️', 'Could not load payouts.');
+    } finally {
+      payoutsSkeleton.style.display = 'none';
+    }
+  }
+
+  function renderPayouts() {
+    if (payouts.length === 0) {
+      payoutsEmpty.style.display = 'flex';
+      payoutsList.innerHTML = '';
+      return;
+    }
+    payoutsEmpty.style.display = 'none';
+    payoutsList.innerHTML = payouts.map(p => `
+      <div class="queue-card" data-payout-id="${escHtml(p.payout_id)}">
+        <div class="queue-card__header">
+          <div>
+            <div class="queue-card__title">@${escHtml(p.username || p.telegram_id)}</div>
+            <div class="text-sm text-muted">${formatDate(p.created_at)}</div>
+          </div>
+          <span class="badge badge--pending">Pending</span>
+        </div>
+        <div class="queue-card__meta">
+          <div class="queue-card__field">
+            <span class="queue-card__field-label">Amount Requested</span>
+            <span class="queue-card__field-value">$${formatNumber(p.amount_requested)}</span>
+          </div>
+          <div class="queue-card__field">
+            <span class="queue-card__field-label">Payout #</span>
+            <span class="queue-card__field-value">${escHtml(String(p.payout_number))}
+              ${p.payout_number >= 2 ? '<span class="badge badge--scaled" style="margin-left:6px;">Scale-up on approval</span>' : ''}
+            </span>
+          </div>
+          <div class="queue-card__field" style="width:100%;">
+            <span class="queue-card__field-label">Wallet</span>
+            <span class="queue-card__field-value queue-card__field-value--mono">${escHtml(p.trader_wallet)}</span>
+          </div>
+        </div>
+        <div class="queue-card__actions">
+          <button class="btn btn--primary btn--sm btn-approve-payout" data-payout-id="${escHtml(p.payout_id)}">✓ Approve</button>
+          <button class="btn btn--danger btn--sm btn-reject-payout" data-payout-id="${escHtml(p.payout_id)}">✕ Reject</button>
+        </div>
+      </div>
+    `).join('');
+
+    payoutsList.querySelectorAll('.btn-approve-payout').forEach(btn => {
+      btn.addEventListener('click', () => approvePayout(btn.dataset.payoutId, btn));
+    });
+    payoutsList.querySelectorAll('.btn-reject-payout').forEach(btn => {
+      btn.addEventListener('click', () => rejectPayout(btn.dataset.payoutId, btn));
+    });
+  }
+
+  async function approvePayout(payoutId, btn) {
+    if (!confirm('Approve this payout? The split will be calculated and the trader notified.')) return;
+    setLoading(btn, true);
+    try {
+      const res = await gasPost({ action: 'approvePayout', payout_id: payoutId, session: sessionToken });
+      if (!res.success) throw new Error(res.error || 'Failed.');
+      showToast('success', '✅', 'Payout approved. Trader notified.');
+      payouts = payouts.filter(p => p.payout_id !== payoutId);
+      renderPayouts();
+      refreshBadges();
+    } catch (err) {
+      showToast('error', '⚠️', err.message || 'Could not approve payout.');
+    } finally {
+      setLoading(btn, false);
+    }
+  }
+
+  async function rejectPayout(payoutId, btn) {
+    if (!confirm('Reject this payout request? The trader will be notified.')) return;
+    setLoading(btn, true);
+    try {
+      const res = await gasPost({ action: 'rejectPayout', payout_id: payoutId, session: sessionToken });
+      if (!res.success) throw new Error(res.error || 'Failed.');
+      showToast('success', '✅', 'Payout rejected. Trader notified.');
+      payouts = payouts.filter(p => p.payout_id !== payoutId);
+      renderPayouts();
+      refreshBadges();
+    } catch (err) {
+      showToast('error', '⚠️', err.message || 'Could not reject payout.');
+    } finally {
+      setLoading(btn, false);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // SUPPORT
+  // ═══════════════════════════════════════════════════════════════════
+  const threadsSkeleton  = document.getElementById('threads-skeleton');
+  const threadsList      = document.getElementById('threads-list');
+  const supportEmpty     = document.getElementById('support-empty');
+  const chatEmpty        = document.getElementById('support-chat-empty');
+  const chatContent      = document.getElementById('support-chat-content');
+  const chatMessages     = document.getElementById('chat-messages');
+  const chatReplyInput   = document.getElementById('chat-reply-input');
+  const btnSendReply     = document.getElementById('btn-send-reply');
+  const btnCloseThread   = document.getElementById('btn-close-thread');
+
+  async function loadThreads() {
+    threadsSkeleton.style.display = 'block';
+    threadsList.innerHTML = '';
+    supportEmpty.style.display = 'none';
+
+    try {
+      const res = await gasPost({ action: 'getOpenSupportThreads', session: sessionToken });
+      threads = res.threads || [];
+      renderThreadList();
+    } catch (err) {
+      showToast('error', '⚠️', 'Could not load support threads.');
+    } finally {
+      threadsSkeleton.style.display = 'none';
+    }
+  }
+
+  function renderThreadList() {
+    if (threads.length === 0) {
+      supportEmpty.style.display = 'flex';
+      threadsList.innerHTML = '';
+      showChatEmpty();
+      return;
+    }
+    supportEmpty.style.display = 'none';
+
+    threadsList.innerHTML = threads.map(t => `
+      <div class="support-thread-item ${t.thread_id === activeThreadId ? 'support-thread-item--active' : ''}"
+           data-thread-id="${escHtml(t.thread_id)}">
+        <div class="support-thread-item__name">@${escHtml(t.username || t.telegram_id)}</div>
+        <div class="support-thread-item__meta">
+          Opened ${formatDate(t.created_at)} ·
+          Last msg ${formatDate(t.last_message_at)}
+        </div>
+      </div>
+    `).join('');
+
+    threadsList.querySelectorAll('.support-thread-item').forEach(item => {
+      item.addEventListener('click', () => openThread(item.dataset.threadId));
+    });
+
+    // Re-open active thread if one was selected
+    if (activeThreadId) openThread(activeThreadId);
+  }
+
+  async function openThread(threadId) {
+    activeThreadId = threadId;
+
+    // Highlight in list
+    document.querySelectorAll('.support-thread-item').forEach(el => {
+      el.classList.toggle('support-thread-item--active', el.dataset.threadId === threadId);
+    });
+
+    const thread = threads.find(t => t.thread_id === threadId);
+    document.getElementById('chat-header-name').textContent = thread
+      ? '@' + (thread.username || thread.telegram_id)
+      : '—';
+    document.getElementById('chat-header-meta').textContent = thread
+      ? 'Opened ' + formatDate(thread.created_at)
+      : '';
+
+    chatEmpty.style.display = 'none';
+    chatContent.style.display = 'flex';
+    chatMessages.innerHTML = '<div class="spinner" style="margin:auto;"></div>';
+
+    try {
+      const res = await gasPost({ action: 'getSupportThreadMessages', thread_id: threadId, session: sessionToken });
+      const msgs = res.messages || [];
+
+      if (msgs.length === 0) {
+        chatMessages.innerHTML = '<p class="text-muted text-sm" style="text-align:center;">No messages yet.</p>';
+      } else {
+        chatMessages.innerHTML = msgs.map(m => `
+          <div>
+            <div class="chat-bubble chat-bubble--${m.sender === 'admin' ? 'admin' : 'trader'}">
+              ${escHtml(m.content)}
+            </div>
+            <div class="chat-bubble__meta" style="text-align:${m.sender === 'admin' ? 'right' : 'left'};">
+              ${m.sender === 'admin' ? 'You' : 'Trader'} · ${formatDate(m.created_at)}
+            </div>
+          </div>
+        `).join('');
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
+    } catch (err) {
+      chatMessages.innerHTML = '<p class="text-muted text-sm" style="text-align:center;">Could not load messages.</p>';
+    }
+  }
+
+  function showChatEmpty() {
+    chatEmpty.style.display = 'flex';
+    chatContent.style.display = 'none';
+    activeThreadId = null;
+  }
+
+  btnSendReply.addEventListener('click', sendReply);
+  chatReplyInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendReply();
+    }
+  });
+
+  async function sendReply() {
+    const text = chatReplyInput.value.trim();
+    if (!text || !activeThreadId) return;
+
+    btnSendReply.disabled = true;
+    chatReplyInput.disabled = true;
+
+    try {
+      const res = await gasPost({
+        action: 'postAdminReply',
+        thread_id: activeThreadId,
+        content: text,
+        session: sessionToken,
+      });
+      if (!res.success) throw new Error(res.error || 'Failed.');
+      chatReplyInput.value = '';
+      await openThread(activeThreadId); // refresh messages
+      refreshBadges();
+    } catch (err) {
+      showToast('error', '⚠️', err.message || 'Could not send reply.');
+    } finally {
+      btnSendReply.disabled = false;
+      chatReplyInput.disabled = false;
+      chatReplyInput.focus();
+    }
+  }
+
+  btnCloseThread.addEventListener('click', async () => {
+    if (!activeThreadId) return;
+    if (!confirm('Close this support thread?')) return;
+
+    btnCloseThread.disabled = true;
+    try {
+      const res = await gasPost({ action: 'closeSupportThread', thread_id: activeThreadId, session: sessionToken });
+      if (!res.success) throw new Error(res.error || 'Failed.');
+      showToast('success', '✅', 'Thread closed.');
+      showChatEmpty();
+      await loadThreads();
+      refreshBadges();
+    } catch (err) {
+      showToast('error', '⚠️', err.message || 'Could not close thread.');
+    } finally {
+      btnCloseThread.disabled = false;
+    }
+  });
+
+  // ─────────────────────────────────────────────────────────────────────
+  // GAS helper
+  // ─────────────────────────────────────────────────────────────────────
+  async function gasPost(body) {
+    if (!GAS_URL) throw new Error('GAS_URL not configured');
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+
+    if (data.error === 'session_expired' || data.error === 'unauthorized') {
+      localStorage.removeItem('nf_admin_session');
+      window.location.href = 'admin-login.html';
+      throw new Error('Session expired.');
+    }
+    if (data.error) throw new Error(data.error);
+    return data;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // Toast
+  // ─────────────────────────────────────────────────────────────────────
+  function showToast(type, icon, msg) {
+    const container = document.getElementById('toast-container');
+    const el = document.createElement('div');
+    el.className = `toast toast--${type}`;
+    el.innerHTML = `<span class="toast__icon">${icon}</span><span class="toast__msg">${msg}</span>`;
+    container.appendChild(el);
+    setTimeout(() => {
+      el.classList.add('toast--exit');
+      setTimeout(() => el.remove(), 300);
+    }, 4000);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // Utils
+  // ─────────────────────────────────────────────────────────────────────
+  function setLoading(btn, on) {
+    btn.classList.toggle('btn--loading', on);
+    btn.disabled = on;
+  }
+
+  function formatNumber(n) {
+    return Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '—';
+    try { return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+    catch { return '—'; }
+  }
+
+  function escHtml(str) {
+    return String(str ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // BOOT
+  // ─────────────────────────────────────────────────────────────────────
+  async function init() {
+    currentRoute = getRouteFromHash();
+    pageLoading.style.display = 'none';
+    adminShell.style.display  = 'flex';
+    renderRoute();
+
+    // Start badge polling
+    await refreshBadges();
+    pollInterval = setInterval(refreshBadges, 30_000);
+  }
+
+  init();
+</script>
+</body>
+</html>

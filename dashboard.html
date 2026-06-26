@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NowFunded — Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    /* ── Dashboard-specific styles ── */
+
+    .main-content {
+      padding-bottom: calc(var(--sp-16) + env(safe-area-inset-bottom) + 16px);
+    }
+
+    /* ── Greeting ── */
+    .greeting {
+      padding: var(--sp-6) 0 var(--sp-4);
+    }
+
+    .greeting__name {
+      font-family: var(--font-display);
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--c-surface);
+      letter-spacing: -0.01em;
+    }
+
+    .greeting__sub {
+      font-size: 0.875rem;
+      color: var(--c-muted);
+      margin-top: var(--sp-1);
+    }
+
+    /* ── Section header ── */
+    .section-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: var(--sp-4);
+    }
+
+    .section-title {
+      font-size: 0.6875rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--c-muted);
+    }
+
+    /* ── Account switcher ── */
+    .account-switcher {
+      display: flex;
+      gap: var(--sp-2);
+      overflow-x: auto;
+      padding-bottom: var(--sp-2);
+      margin-bottom: var(--sp-5);
+      scrollbar-width: none;
+    }
+
+    .account-switcher::-webkit-scrollbar { display: none; }
+
+    .account-pill {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+      padding: var(--sp-2) var(--sp-3);
+      border-radius: var(--r-pill);
+      border: 1.5px solid var(--c-border);
+      background: none;
+      font-family: var(--font-ui);
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--c-muted);
+      cursor: pointer;
+      transition: border-color var(--t-fast) var(--ease),
+                  color var(--t-fast) var(--ease),
+                  background var(--t-fast) var(--ease);
+    }
+
+    .account-pill--active {
+      border-color: var(--c-copper);
+      color: var(--c-copper);
+      background: rgba(201,123,74,.08);
+    }
+
+    .account-pill__dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--c-muted);
+      flex-shrink: 0;
+    }
+
+    .account-pill--active .account-pill__dot { background: var(--c-copper); }
+    .account-pill--passed .account-pill__dot  { background: var(--c-green); }
+
+    /* ── Status card ── */
+    .status-card {
+      background: #16191E;
+      border: 1.5px solid var(--c-border);
+      border-radius: var(--r-xl);
+      padding: var(--sp-5);
+      margin-bottom: var(--sp-5);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .status-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      border-radius: var(--r-xl) var(--r-xl) 0 0;
+      background: var(--c-copper);
+      opacity: 0.6;
+    }
+
+    .status-card--funded::before,
+    .status-card--scaled::before {
+      background: linear-gradient(90deg, var(--c-green) 0%, var(--c-copper) 100%);
+      opacity: 1;
+    }
+
+    .status-card__top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: var(--sp-5);
+    }
+
+    .status-card__plan-name {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--c-muted);
+      margin-bottom: var(--sp-1);
+    }
+
+    .status-card__size {
+      font-family: var(--font-display);
+      font-size: 2rem;
+      font-weight: 300;
+      color: var(--c-surface);
+      letter-spacing: -0.02em;
+      line-height: 1;
+    }
+
+    /* ── Ladder inside card ── */
+    .card-ladder {
+      margin-bottom: var(--sp-5);
+    }
+
+    /* ── MT5 credentials ── */
+    .creds-section {
+      border-top: 1px solid var(--c-border);
+      padding-top: var(--sp-4);
+      margin-top: var(--sp-2);
+    }
+
+    .creds-section__label {
+      font-size: 0.6875rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--c-muted);
+      margin-bottom: var(--sp-3);
+    }
+
+    /* ── Payout history row ── */
+    .payout-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: var(--sp-3) 0;
+      font-size: 0.875rem;
+      border-bottom: 1px solid rgba(139,134,128,.1);
+    }
+
+    .payout-row:last-child { border-bottom: none; }
+
+    .payout-row__meta {
+      color: var(--c-muted);
+      font-size: 0.75rem;
+      margin-top: 2px;
+    }
+
+    .payout-row__amount {
+      font-family: var(--font-display);
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--c-surface);
+    }
+
+    /* ── Quick actions grid ── */
+    .quick-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--sp-3);
+      margin-bottom: var(--sp-6);
+    }
+
+    .quick-action {
+      background: var(--c-surface-ghost);
+      border: 1px solid var(--c-border);
+      border-radius: var(--r-lg);
+      padding: var(--sp-4);
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-2);
+      cursor: pointer;
+      text-decoration: none;
+      transition: border-color var(--t-fast) var(--ease),
+                  background var(--t-fast) var(--ease);
+    }
+
+    .quick-action:hover {
+      border-color: rgba(201,123,74,.35);
+      background: rgba(201,123,74,.05);
+      text-decoration: none;
+    }
+
+    .quick-action__icon { font-size: 1.25rem; }
+
+    .quick-action__label {
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--c-surface);
+    }
+
+    .quick-action__desc {
+      font-size: 0.75rem;
+      color: var(--c-muted);
+      line-height: 1.4;
+    }
+
+    /* ── No accounts empty state ── */
+    #no-accounts { display: none; }
+
+    /* ── Payout modal extras ── */
+    .payout-split-note {
+      font-size: 0.8125rem;
+      color: var(--c-muted);
+      line-height: 1.5;
+      margin-top: var(--sp-2);
+      padding: var(--sp-3) var(--sp-4);
+      background: rgba(201,123,74,.06);
+      border: 1px solid rgba(201,123,74,.2);
+      border-radius: var(--r-md);
+    }
+
+    /* ── Bottom nav bar ── */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      background: rgba(15,17,21,.96);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-top: 1px solid var(--c-border);
+      padding: var(--sp-3) var(--sp-4) calc(var(--sp-3) + env(safe-area-inset-bottom));
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+    }
+
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      flex: 1;
+      padding: var(--sp-2) 0;
+      background: none;
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+      font-family: var(--font-ui);
+      color: var(--c-muted);
+      transition: color var(--t-fast) var(--ease);
+    }
+
+    .nav-item--active { color: var(--c-copper); }
+    .nav-item:hover   { color: var(--c-surface); text-decoration: none; }
+
+    .nav-item__icon { font-size: 1.25rem; line-height: 1; }
+
+    .nav-item__label {
+      font-size: 0.625rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    /* ── Loading skeleton ── */
+    .skeleton {
+      background: linear-gradient(90deg,
+        rgba(255,255,255,.04) 25%,
+        rgba(255,255,255,.08) 50%,
+        rgba(255,255,255,.04) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: var(--r-md);
+    }
+
+    @keyframes shimmer {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    .skeleton-greeting { height: 52px; border-radius: var(--r-md); margin-bottom: var(--sp-5); }
+    .skeleton-card     { height: 340px; border-radius: var(--r-xl); margin-bottom: var(--sp-4); }
+  </style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div class="loading-overlay" id="page-loading">
+  <div class="spinner spinner--lg"></div>
+</div>
+
+<!-- Top bar -->
+<header class="topbar">
+  <span class="topbar__logo">Now<span>Funded</span></span>
+  <a href="marketplace.html" class="btn btn--primary btn--sm">+ New Challenge</a>
+</header>
+
+<!-- Main content -->
+<main class="main-content container" id="main-content" style="display:none;">
+
+  <!-- Greeting -->
+  <div class="greeting" id="greeting">
+    <div class="greeting__name" id="greeting-name">Good morning</div>
+    <div class="greeting__sub" id="greeting-sub">Here's your trading overview.</div>
+  </div>
+
+  <!-- ── Skeleton loaders ── -->
+  <div id="skeletons">
+    <div class="skeleton skeleton-greeting"></div>
+    <div class="skeleton skeleton-card"></div>
+  </div>
+
+  <!-- ── No accounts ── -->
+  <div class="empty-state" id="no-accounts">
+    <div class="empty-state__icon">📭</div>
+    <p class="empty-state__title">No active challenges</p>
+    <p class="empty-state__desc">Purchase a challenge to get started on your funded trading journey.</p>
+    <a href="marketplace.html" class="btn btn--primary mt-4">Browse Challenges</a>
+  </div>
+
+  <!-- ── Account area ── -->
+  <div id="account-area" style="display:none;">
+
+    <!-- Account switcher (shown when >1 account) -->
+    <div class="account-switcher" id="account-switcher" style="display:none;"></div>
+
+    <!-- Status card -->
+    <div class="status-card" id="status-card">
+
+      <!-- Card top: plan info + badge -->
+      <div class="status-card__top">
+        <div>
+          <div class="status-card__plan-name" id="card-plan-name">—</div>
+          <div class="status-card__size" id="card-account-size">—</div>
+        </div>
+        <span class="badge" id="card-badge">—</span>
+      </div>
+
+      <!-- Status ladder -->
+      <div class="card-ladder">
+        <div class="ladder">
+          <div class="ladder__track"></div>
+
+          <!-- Phase 1 -->
+          <div class="ladder__step" id="step-phase1">
+            <div class="ladder__node">
+              <span class="ladder__num">1</span>
+              <span class="ladder__check">✓</span>
+            </div>
+            <div class="ladder__info">
+              <div class="ladder__phase-name">Phase 1</div>
+              <div class="ladder__phase-meta" id="meta-phase1">Profit target to unlock Phase 2</div>
+            </div>
+          </div>
+
+          <!-- Phase 2 -->
+          <div class="ladder__step" id="step-phase2">
+            <div class="ladder__node">
+              <span class="ladder__num">2</span>
+              <span class="ladder__check">✓</span>
+            </div>
+            <div class="ladder__info">
+              <div class="ladder__phase-name">Phase 2</div>
+              <div class="ladder__phase-meta" id="meta-phase2">Confirm consistency</div>
+            </div>
+          </div>
+
+          <!-- Funded -->
+          <div class="ladder__step" id="step-funded">
+            <div class="ladder__node">
+              <span class="ladder__num">★</span>
+              <span class="ladder__check">✓</span>
+            </div>
+            <div class="ladder__info">
+              <div class="ladder__phase-name">Funded</div>
+              <div class="ladder__phase-meta" id="meta-funded">Live account, real capital</div>
+            </div>
+          </div>
+
+          <!-- Scaled -->
+          <div class="ladder__step" id="step-scaled">
+            <div class="ladder__node">
+              <span class="ladder__num">⚡</span>
+              <span class="ladder__check">✓</span>
+            </div>
+            <div class="ladder__info">
+              <div class="ladder__phase-name">Scaled</div>
+              <div class="ladder__phase-meta" id="meta-scaled">Unlocked after 2nd payout</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Plan stats -->
+      <div class="cred-grid" id="plan-stats" style="margin-bottom:var(--sp-4);"></div>
+
+      <!-- MT5 Credentials (shown when active/funded/scaled) -->
+      <div class="creds-section" id="creds-section" style="display:none;">
+        <div class="creds-section__label">MT5 Credentials</div>
+        <div class="cred-grid" id="creds-grid"></div>
+      </div>
+
+      <!-- Payout history (shown when funded/scaled) -->
+      <div class="creds-section" id="payout-history-section" style="display:none;">
+        <div class="creds-section__label">Payout History</div>
+        <div id="payout-history-list"></div>
+      </div>
+
+      <!-- Payout button (funded/scaled active only) -->
+      <div id="payout-btn-wrap" style="display:none; margin-top:var(--sp-4);">
+        <button class="btn btn--primary btn--full" id="btn-request-payout">
+          Request Payout
+        </button>
+      </div>
+
+    </div><!-- /.status-card -->
+
+  </div><!-- /#account-area -->
+
+  <!-- ── Quick actions ── -->
+  <div id="quick-actions-section" style="display:none;">
+    <div class="section-header">
+      <span class="section-title">Quick Actions</span>
+    </div>
+    <div class="quick-actions">
+      <a href="marketplace.html" class="quick-action">
+        <span class="quick-action__icon">🛒</span>
+        <span class="quick-action__label">Marketplace</span>
+        <span class="quick-action__desc">Browse and buy new challenges</span>
+      </a>
+      <a href="points.html" class="quick-action">
+        <span class="quick-action__icon">⭐</span>
+        <span class="quick-action__label">Points</span>
+        <span class="quick-action__desc">Rewards, referrals &amp; discounts</span>
+      </a>
+      <a href="support.html" class="quick-action">
+        <span class="quick-action__icon">💬</span>
+        <span class="quick-action__label">Support</span>
+        <span class="quick-action__desc">Message our team</span>
+      </a>
+      <a href="howitworks.html" class="quick-action">
+        <span class="quick-action__icon">📖</span>
+        <span class="quick-action__label">How It Works</span>
+        <span class="quick-action__desc">Rules, drawdown &amp; payouts</span>
+      </a>
+    </div>
+  </div>
+
+</main>
+
+<!-- Bottom nav -->
+<nav class="bottom-nav">
+  <a href="dashboard.html" class="nav-item nav-item--active">
+    <span class="nav-item__icon">🏠</span>
+    <span class="nav-item__label">Home</span>
+  </a>
+  <a href="marketplace.html" class="nav-item">
+    <span class="nav-item__icon">🛒</span>
+    <span class="nav-item__label">Buy</span>
+  </a>
+  <a href="points.html" class="nav-item">
+    <span class="nav-item__icon">⭐</span>
+    <span class="nav-item__label">Points</span>
+  </a>
+  <a href="support.html" class="nav-item">
+    <span class="nav-item__icon">💬</span>
+    <span class="nav-item__label">Support</span>
+  </a>
+</nav>
+
+<!-- ── Payout Request Modal ── -->
+<div class="modal-overlay" id="payout-modal" role="dialog" aria-modal="true" aria-label="Request Payout">
+  <div class="modal">
+    <div class="modal__handle"></div>
+    <h2 class="modal__title">Request Payout</h2>
+
+    <div class="stack stack--4">
+      <div class="form-group">
+        <label class="form-label" for="payout-wallet">Your Wallet Address</label>
+        <input
+          type="text"
+          class="form-input"
+          id="payout-wallet"
+          placeholder="Paste your crypto wallet address"
+          autocomplete="off"
+          spellcheck="false"
+        />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="payout-amount">Amount (USD)</label>
+        <input
+          type="number"
+          class="form-input"
+          id="payout-amount"
+          placeholder="0.00"
+          min="1"
+          step="0.01"
+        />
+      </div>
+
+      <div class="payout-split-note" id="payout-split-note"></div>
+
+      <div class="form-error" id="payout-error" style="display:none;"></div>
+
+      <button class="btn btn--primary btn--full" id="btn-submit-payout">
+        Submit Request
+      </button>
+
+      <button class="btn btn--ghost btn--full" id="btn-cancel-payout">
+        Cancel
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ─── Telegram init ──────────────────────────────────────────────────────
+  const tg = window.Telegram?.WebApp;
+  if (tg) { tg.ready(); tg.expand(); tg.BackButton.hide(); }
+
+  const telegramUser = tg?.initDataUnsafe?.user ?? {};
+  const telegramId   = telegramUser.id ?? null;
+
+  // ─── GAS endpoint ───────────────────────────────────────────────────────
+
+  // ─── State ──────────────────────────────────────────────────────────────
+  let accounts       = [];
+  let activeAccount  = null;
+  let activeIndex    = 0;
+  let submittingPayout = false;
+
+  // ─── DOM refs ───────────────────────────────────────────────────────────
+  const pageLoading       = document.getElementById('page-loading');
+  const mainContent       = document.getElementById('main-content');
+  const skeletons         = document.getElementById('skeletons');
+  const noAccounts        = document.getElementById('no-accounts');
+  const accountArea       = document.getElementById('account-area');
+  const accountSwitcher   = document.getElementById('account-switcher');
+  const quickActionsSection = document.getElementById('quick-actions-section');
+  const statusCard        = document.getElementById('status-card');
+  const cardBadge         = document.getElementById('card-badge');
+  const cardPlanName      = document.getElementById('card-plan-name');
+  const cardAccountSize   = document.getElementById('card-account-size');
+  const planStats         = document.getElementById('plan-stats');
+  const credsSection      = document.getElementById('creds-section');
+  const credsGrid         = document.getElementById('creds-grid');
+  const payoutHistorySection = document.getElementById('payout-history-section');
+  const payoutHistoryList    = document.getElementById('payout-history-list');
+  const payoutBtnWrap     = document.getElementById('payout-btn-wrap');
+  const btnRequestPayout  = document.getElementById('btn-request-payout');
+  const greetingName      = document.getElementById('greeting-name');
+  const greetingSub       = document.getElementById('greeting-sub');
+
+  // Ladder steps
+  const steps = {
+    phase1: document.getElementById('step-phase1'),
+    phase2: document.getElementById('step-phase2'),
+    funded: document.getElementById('step-funded'),
+    scaled: document.getElementById('step-scaled'),
+  };
+  const metas = {
+    phase1: document.getElementById('meta-phase1'),
+    phase2: document.getElementById('meta-phase2'),
+    funded: document.getElementById('meta-funded'),
+    scaled: document.getElementById('meta-scaled'),
+  };
+
+  // Payout modal
+  const payoutModal      = document.getElementById('payout-modal');
+  const payoutWalletInput= document.getElementById('payout-wallet');
+  const payoutAmountInput= document.getElementById('payout-amount');
+  const payoutSplitNote  = document.getElementById('payout-split-note');
+  const payoutError      = document.getElementById('payout-error');
+  const btnSubmitPayout  = document.getElementById('btn-submit-payout');
+  const btnCancelPayout  = document.getElementById('btn-cancel-payout');
+
+  // ─── Boot ───────────────────────────────────────────────────────────────
+  async function init() {
+    setGreeting();
+
+    try {
+      const res = await gasPost({ action: 'getDashboard', telegram_id: telegramId });
+      accounts = res.accounts || [];
+
+      skeletons.style.display = 'none';
+
+      if (accounts.length === 0) {
+        noAccounts.style.display = 'flex';
+      } else {
+        accountArea.style.display = 'block';
+        quickActionsSection.style.display = 'block';
+        renderAccountSwitcher();
+        renderAccount(0);
+      }
+
+    } catch (err) {
+      console.error('Dashboard init error:', err);
+      skeletons.style.display = 'none';
+      noAccounts.style.display = 'flex';
+    } finally {
+      pageLoading.style.display = 'none';
+      mainContent.style.display = 'block';
+      quickActionsSection.style.display = quickActionsSection.style.display || 'block';
+    }
+  }
+
+  // ─── Greeting ───────────────────────────────────────────────────────────
+  function setGreeting() {
+    const hour = new Date().getHours();
+    const part = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
+    const name = telegramUser.first_name || 'Trader';
+    greetingName.textContent = `Good ${part}, ${name}`;
+  }
+
+  // ─── Account switcher ───────────────────────────────────────────────────
+  function renderAccountSwitcher() {
+    if (accounts.length <= 1) {
+      accountSwitcher.style.display = 'none';
+      return;
+    }
+    accountSwitcher.style.display = 'flex';
+    accountSwitcher.innerHTML = '';
+    accounts.forEach((acc, i) => {
+      const btn = document.createElement('button');
+      const isActive = acc.status === 'active' || acc.status === 'funded' || acc.status === 'scaled';
+      btn.className = 'account-pill' + (i === 0 ? ' account-pill--active' : '') +
+                      (acc.status === 'passed' ? ' account-pill--passed' : '');
+      btn.innerHTML = `<span class="account-pill__dot"></span>${escHtml(acc.plan_name)} · $${formatNumber(acc.account_size)}`;
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.account-pill').forEach(p => p.classList.remove('account-pill--active'));
+        btn.classList.add('account-pill--active');
+        renderAccount(i);
+        tg?.HapticFeedback?.selectionChanged();
+      });
+      accountSwitcher.appendChild(btn);
+    });
+  }
+
+  // ─── Render one account ─────────────────────────────────────────────────
+  function renderAccount(index) {
+    activeIndex   = index;
+    activeAccount = accounts[index];
+    const acc     = activeAccount;
+
+    // Header
+    cardPlanName.textContent    = acc.plan_name || 'Challenge';
+    cardAccountSize.textContent = '$' + formatNumber(acc.account_size);
+
+    // Status badge
+    cardBadge.className   = 'badge badge--' + acc.status;
+    cardBadge.textContent = capitalize(acc.status);
+
+    // Status card accent
+    statusCard.className = 'status-card';
+    if (acc.status === 'funded' || acc.status === 'scaled') {
+      statusCard.classList.add('status-card--' + acc.status);
+    }
+
+    // Ladder
+    renderLadder(acc);
+
+    // Plan stats
+    renderPlanStats(acc);
+
+    // Credentials
+    if (acc.mt5_login && ['active','funded','scaled'].includes(acc.status)) {
+      renderCredentials(acc);
+      credsSection.style.display = 'block';
+    } else {
+      credsSection.style.display = 'none';
+    }
+
+    // Payout history
+    const payouts = acc.payouts || [];
+    if (payouts.length > 0 && ['funded','scaled'].includes(acc.status)) {
+      renderPayoutHistory(payouts);
+      payoutHistorySection.style.display = 'block';
+    } else {
+      payoutHistorySection.style.display = 'none';
+    }
+
+    // Payout button — only on funded/scaled + active (not blown/breached)
+    const canPayout = ['funded','scaled'].includes(acc.status);
+    payoutBtnWrap.style.display = canPayout ? 'block' : 'none';
+  }
+
+  // ─── Ladder ─────────────────────────────────────────────────────────────
+  function renderLadder(acc) {
+    const statusMap = {
+      // account.status → which steps are passed/active/locked
+      'active':   { passed: [],              active: phaseFromStatus(acc), locked: [] },
+      'passed':   { passed: [acc.phase <= 2 ? 'phase' + acc.phase : null], active: null, locked: [] },
+      'funded':   { passed: ['phase1','phase2'], active: 'funded', locked: [] },
+      'scaled':   { passed: ['phase1','phase2','funded'], active: 'scaled', locked: [] },
+      'breached': { passed: [],              active: null, locked: [] },
+      'blown':    { passed: [],              active: null, locked: [] },
+    };
+
+    // Determine step states from account phase + status
+    const stepOrder = ['phase1','phase2','funded','scaled'];
+    const phaseKey  = acc.phase === 1 ? 'phase1' : acc.phase === 2 ? 'phase2' : null;
+
+    stepOrder.forEach(key => {
+      const el = steps[key];
+      el.classList.remove('ladder__step--passed','ladder__step--active','ladder__step--locked');
+
+      const phaseIndex  = stepOrder.indexOf(key);
+      const statusIndex = activeStepIndex(acc);
+
+      if (phaseIndex < statusIndex) {
+        el.classList.add('ladder__step--passed');
+      } else if (phaseIndex === statusIndex) {
+        el.classList.add('ladder__step--active');
+      } else {
+        el.classList.add('ladder__step--locked');
+      }
+    });
+
+    // Meta text
+    if (acc.plan_phase1_target)  metas.phase1.textContent = `Profit target: ${acc.plan_phase1_target}%`;
+    if (acc.plan_phase2_target)  metas.phase2.textContent = `Profit target: ${acc.plan_phase2_target}%`;
+    if (acc.plan_max_drawdown)   metas.funded.textContent = `Max drawdown: ${acc.plan_max_drawdown}%`;
+  }
+
+  function activeStepIndex(acc) {
+    if (acc.status === 'scaled')  return 3;
+    if (acc.status === 'funded')  return 2;
+    if (acc.status === 'passed')  return acc.phase === 1 ? 1 : 2;
+    if (acc.status === 'active')  return acc.phase === 1 ? 0 : 1;
+    return 0; // breached/blown — show phase 1 active
+  }
+
+  function phaseFromStatus(acc) {
+    return acc.phase === 1 ? 'phase1' : 'phase2';
+  }
+
+  // ─── Plan stats ─────────────────────────────────────────────────────────
+  function renderPlanStats(acc) {
+    planStats.innerHTML = '';
+    const stats = [
+      { label: 'Phase 1 Target', value: acc.plan_phase1_target ? acc.plan_phase1_target + '%' : '—' },
+      { label: 'Max Drawdown',   value: acc.plan_max_drawdown  ? acc.plan_max_drawdown  + '%' : '—' },
+      { label: 'Payout Split',   value: acc.plan_payout_split  ? acc.plan_payout_split  + '%' : '—' },
+      { label: 'Phase',          value: acc.phase ? 'Phase ' + acc.phase : '—' },
+    ];
+    stats.forEach(s => {
+      const div = document.createElement('div');
+      div.className = 'cred-item';
+      div.innerHTML = `<div class="cred-item__label">${escHtml(s.label)}</div>
+                       <div class="cred-item__value" style="font-family:var(--font-ui);color:var(--c-surface);font-size:0.9375rem;">${escHtml(s.value)}</div>`;
+      planStats.appendChild(div);
+    });
+  }
+
+  // ─── Credentials ────────────────────────────────────────────────────────
+  function renderCredentials(acc) {
+    credsGrid.innerHTML = `
+      <div class="cred-item">
+        <div class="cred-item__label">Login</div>
+        <div class="cred-item__value">${escHtml(acc.mt5_login)}</div>
+      </div>
+      <div class="cred-item">
+        <div class="cred-item__label">Password</div>
+        <div class="cred-item__value">${escHtml(acc.mt5_password)}</div>
+      </div>
+      <div class="cred-item cred-item--full">
+        <div class="cred-item__label">Server</div>
+        <div class="cred-item__value">${escHtml(acc.mt5_server)}</div>
+      </div>
+    `;
+  }
+
+  // ─── Payout history ─────────────────────────────────────────────────────
+  function renderPayoutHistory(payouts) {
+    payoutHistoryList.innerHTML = '';
+    payouts.forEach(p => {
+      const row = document.createElement('div');
+      row.className = 'payout-row';
+      row.innerHTML = `
+        <div>
+          <div style="font-weight:600;color:var(--c-surface);font-size:0.875rem;">Payout #${p.payout_number}</div>
+          <div class="payout-row__meta">${formatDate(p.resolved_at || p.created_at)}</div>
+        </div>
+        <div style="text-align:right;">
+          <div class="payout-row__amount">$${formatNumber(p.amount_requested)}</div>
+          <span class="badge badge--${p.status}" style="font-size:0.6875rem;">${capitalize(p.status)}</span>
+        </div>
+      `;
+      payoutHistoryList.appendChild(row);
+    });
+  }
+
+  // ─── Payout modal ───────────────────────────────────────────────────────
+  btnRequestPayout.addEventListener('click', () => {
+    const acc = activeAccount;
+    const payoutCount = (acc.payouts || []).filter(p => p.status === 'approved').length;
+    const splitPct = payoutCount === 0
+      ? (acc.plan_payout_split_first  || acc.plan_payout_split || '—')
+      : (acc.plan_payout_split_second || acc.plan_payout_split || '—');
+
+    payoutSplitNote.textContent = payoutCount === 0
+      ? `Your first payout split is ${splitPct}% in your favour.`
+      : `Subsequent payout split is ${splitPct}% in your favour.`;
+
+    payoutError.style.display = 'none';
+    payoutWalletInput.value   = '';
+    payoutAmountInput.value   = '';
+    openModal(payoutModal);
+    tg?.HapticFeedback?.selectionChanged();
+  });
+
+  btnCancelPayout.addEventListener('click', () => closeModal(payoutModal));
+  payoutModal.addEventListener('click', e => { if (e.target === payoutModal) closeModal(payoutModal); });
+
+  btnSubmitPayout.addEventListener('click', async () => {
+    if (submittingPayout) return;
+
+    const wallet = payoutWalletInput.value.trim();
+    const amount = parseFloat(payoutAmountInput.value);
+
+    if (!wallet) { showPayoutError('Enter your wallet address.'); return; }
+    if (!amount || amount <= 0) { showPayoutError('Enter a valid amount.'); return; }
+
+    submittingPayout = true;
+    btnSubmitPayout.classList.add('btn--loading');
+    btnSubmitPayout.disabled = true;
+    payoutError.style.display = 'none';
+
+    try {
+      const res = await gasPost({
+        action:         'requestPayout',
+        telegram_id:    telegramId,
+        account_id:     activeAccount.account_id,
+        trader_wallet:  wallet,
+        amount_requested: amount,
+      });
+
+      if (res.success) {
+        tg?.HapticFeedback?.notificationOccurred('success');
+        closeModal(payoutModal);
+        // Optimistically add to payout history
+        if (!activeAccount.payouts) activeAccount.payouts = [];
+        activeAccount.payouts.push({
+          payout_number: (activeAccount.payouts.length + 1),
+          amount_requested: amount,
+          status: 'pending',
+          created_at: new Date().toISOString(),
+        });
+        renderAccount(activeIndex);
+        showToast('Payout request submitted ✓');
+      } else {
+        throw new Error(res.error || 'Submission failed.');
+      }
+
+    } catch (err) {
+      showPayoutError(err.message || 'Something went wrong. Try again.');
+    } finally {
+      btnSubmitPayout.classList.remove('btn--loading');
+      btnSubmitPayout.disabled = false;
+      submittingPayout = false;
+    }
+  });
+
+  function showPayoutError(msg) {
+    payoutError.textContent    = msg;
+    payoutError.style.display  = 'block';
+    tg?.HapticFeedback?.notificationOccurred('error');
+  }
+
+  // ─── Modal helpers ──────────────────────────────────────────────────────
+  function openModal(el) {
+    el.classList.add('modal-overlay--open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeModal(el) {
+    el.classList.remove('modal-overlay--open');
+    document.body.style.overflow = '';
+  }
+
+  // ─── Toast ──────────────────────────────────────────────────────────────
+  function showToast(msg) {
+    const toast = document.createElement('div');
+    toast.className = 'success-banner';
+    toast.style.cssText = 'position:fixed;bottom:calc(80px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);z-index:600;white-space:nowrap;font-weight:600;padding:var(--sp-3) var(--sp-5);';
+    toast.textContent = msg;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3200);
+  }
+
+  // ─── GAS helper ─────────────────────────────────────────────────────────
+  async function gasPost(body) {
+    if (!GAS_URL) throw new Error('GAS_URL not set');
+    const res  = await fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    return data;
+  }
+
+  // ─── Utils ──────────────────────────────────────────────────────────────
+  function formatNumber(n) {
+    return Number(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  function capitalize(str) {
+    return str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
+  }
+
+  function escHtml(str) {
+    return String(str ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // ─── Kick off ───────────────────────────────────────────────────────────
+  init();
+</script>
+</body>
+</html>

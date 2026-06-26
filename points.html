@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NowFunded — Points</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    /* ── Points-specific styles ── */
+
+    .main-content {
+      padding-bottom: calc(var(--sp-16) + env(safe-area-inset-bottom) + 16px);
+    }
+
+    /* ── Segment tabs ── */
+    .seg-tabs {
+      display: flex;
+      gap: var(--sp-1);
+      background: var(--c-surface-ghost);
+      border: 1px solid var(--c-border);
+      border-radius: var(--r-md);
+      padding: var(--sp-1);
+      margin-bottom: var(--sp-6);
+    }
+
+    .seg-tab {
+      flex: 1;
+      padding: var(--sp-2) var(--sp-3);
+      border-radius: calc(var(--r-md) - 2px);
+      border: none;
+      background: none;
+      font-family: var(--font-ui);
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--c-muted);
+      cursor: pointer;
+      transition: background var(--t-fast) var(--ease),
+                  color var(--t-fast) var(--ease);
+      text-align: center;
+    }
+
+    .seg-tab--active {
+      background: #1E2127;
+      color: var(--c-copper);
+      border: 1px solid rgba(201,123,74,.3);
+    }
+
+    /* ── Tab panels ── */
+    .tab-panel { display: none; }
+    .tab-panel--active { display: block; }
+
+    /* ── Section header ── */
+    .section-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: var(--sp-3);
+    }
+
+    .section-title {
+      font-size: 0.6875rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--c-muted);
+    }
+
+    /* ── Points shop card ── */
+    .shop-item {
+      background: #16191E;
+      border: 1.5px solid var(--c-border);
+      border-radius: var(--r-lg);
+      padding: var(--sp-4) var(--sp-5);
+      display: flex;
+      align-items: center;
+      gap: var(--sp-4);
+      transition: border-color var(--t-fast) var(--ease);
+    }
+
+    .shop-item + .shop-item { margin-top: var(--sp-3); }
+
+    .shop-item--affordable { border-color: rgba(201,123,74,.35); }
+
+    .shop-item__left { flex: 1; min-width: 0; }
+
+    .shop-item__name {
+      font-weight: 600;
+      color: var(--c-surface);
+      font-size: 0.9375rem;
+      margin-bottom: var(--sp-1);
+    }
+
+    .shop-item__cost {
+      font-size: 0.8125rem;
+      color: var(--c-muted);
+    }
+
+    .shop-item__cost strong {
+      color: var(--c-copper);
+      font-weight: 700;
+    }
+
+    .shop-item__discount {
+      display: inline-block;
+      font-size: 0.6875rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      background: rgba(45,92,74,.15);
+      color: #3d8c6b;
+      border: 1px solid rgba(45,92,74,.25);
+      border-radius: var(--r-pill);
+      padding: 2px 8px;
+      margin-top: var(--sp-1);
+    }
+
+    /* ── Referral history row ── */
+    .referral-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--sp-3) 0;
+      border-bottom: 1px solid rgba(139,134,128,.1);
+    }
+
+    .referral-row:last-child { border-bottom: none; }
+
+    .referral-row__name {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--c-surface);
+    }
+
+    .referral-row__date {
+      font-size: 0.75rem;
+      color: var(--c-muted);
+      margin-top: 2px;
+    }
+
+    /* ── Redeem confirmation inside modal ── */
+    .redeem-preview {
+      background: var(--c-surface-ghost);
+      border: 1px solid var(--c-border);
+      border-radius: var(--r-md);
+      padding: var(--sp-4);
+      margin-bottom: var(--sp-4);
+    }
+
+    .redeem-preview__row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.875rem;
+      padding: var(--sp-2) 0;
+      color: var(--c-muted);
+    }
+
+    .redeem-preview__row + .redeem-preview__row {
+      border-top: 1px solid rgba(139,134,128,.1);
+    }
+
+    .redeem-preview__row span:last-child {
+      font-weight: 600;
+      color: var(--c-surface);
+    }
+
+    .redeem-preview__row--total span:last-child { color: var(--c-copper); }
+
+    /* ── Redeemed code display ── */
+    .redeemed-code-box {
+      background: rgba(45,92,74,.08);
+      border: 1px solid rgba(45,92,74,.3);
+      border-radius: var(--r-md);
+      padding: var(--sp-4);
+      text-align: center;
+    }
+
+    .redeemed-code-box__label {
+      font-size: 0.6875rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--c-muted);
+      margin-bottom: var(--sp-2);
+    }
+
+    .redeemed-code-box__code {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 1.375rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      color: #3d8c6b;
+      margin-bottom: var(--sp-3);
+    }
+
+    /* ── Loading skeleton ── */
+    .skeleton {
+      background: linear-gradient(90deg,
+        rgba(255,255,255,.04) 25%,
+        rgba(255,255,255,.08) 50%,
+        rgba(255,255,255,.04) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: var(--r-md);
+    }
+
+    @keyframes shimmer {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    .skeleton-balance { height: 140px; border-radius: var(--r-xl); margin-bottom: var(--sp-5); }
+    .skeleton-row     { height: 52px; margin-bottom: var(--sp-2); }
+  </style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div class="loading-overlay" id="page-loading">
+  <div class="spinner spinner--lg"></div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- Top bar -->
+<header class="topbar">
+  <span class="topbar__logo">Now<span>Funded</span></span>
+  <a href="dashboard.html" class="btn btn--ghost btn--sm">Dashboard</a>
+</header>
+
+<!-- Main content -->
+<main class="main-content container" id="main-content" style="display:none;">
+
+  <!-- ── Skeleton loaders ── -->
+  <div id="skeletons" style="padding-top:var(--sp-6);">
+    <div class="skeleton skeleton-balance"></div>
+    <div class="skeleton skeleton-row"></div>
+    <div class="skeleton skeleton-row"></div>
+    <div class="skeleton skeleton-row"></div>
+  </div>
+
+  <!-- ── Loaded content ── -->
+  <div id="loaded-content" style="display:none;">
+
+    <!-- Balance display -->
+    <div style="padding-top:var(--sp-6); margin-bottom:var(--sp-6);">
+      <div class="balance-display">
+        <div class="balance-display__label">Your Points Balance</div>
+        <div class="balance-display__amount" id="points-balance">0</div>
+        <div class="balance-display__unit">pts</div>
+      </div>
+    </div>
+
+    <!-- Segment tabs -->
+    <div class="seg-tabs" role="tablist">
+      <button class="seg-tab seg-tab--active" data-tab="history"   role="tab" aria-selected="true">History</button>
+      <button class="seg-tab"                 data-tab="referrals" role="tab" aria-selected="false">Referrals</button>
+      <button class="seg-tab"                 data-tab="shop"      role="tab" aria-selected="false">Shop</button>
+    </div>
+
+    <!-- ── Tab: History ── -->
+    <div class="tab-panel tab-panel--active" id="panel-history" role="tabpanel">
+
+      <div class="section-header">
+        <span class="section-title">Points Activity</span>
+      </div>
+
+      <div class="ledger" id="ledger-list"></div>
+
+      <div class="empty-state" id="no-ledger" style="display:none;">
+        <div class="empty-state__icon">📋</div>
+        <p class="empty-state__title">No activity yet</p>
+        <p class="empty-state__desc">Earn points by completing challenges, referring friends, and more.</p>
+      </div>
+
+    </div>
+
+    <!-- ── Tab: Referrals ── -->
+    <div class="tab-panel" id="panel-referrals" role="tabpanel">
+
+      <!-- Referral code -->
+      <div class="section-header">
+        <span class="section-title">Your Referral Code</span>
+      </div>
+
+      <div class="referral-box mb-4">
+        <span class="referral-box__code" id="referral-code">—</span>
+        <button class="btn btn--ghost btn--sm" id="btn-copy-code">Copy</button>
+      </div>
+
+      <div class="info-banner mb-6" style="margin-bottom:var(--sp-6);">
+        <span>💡</span>
+        <span id="referral-tip">Share your code — you earn points when a referred trader's payment is confirmed.</span>
+      </div>
+
+      <!-- Share link -->
+      <button class="btn btn--primary btn--full mb-4" id="btn-share-link" style="margin-bottom:var(--sp-4);">
+        Share Invite Link
+      </button>
+
+      <!-- Referral history -->
+      <div class="section-header" style="margin-top:var(--sp-2);">
+        <span class="section-title">Referrals</span>
+        <span class="text-xs text-muted" id="referral-count">0 total</span>
+      </div>
+
+      <div id="referral-list"></div>
+
+      <div class="empty-state" id="no-referrals" style="display:none;">
+        <div class="empty-state__icon">👥</div>
+        <p class="empty-state__title">No referrals yet</p>
+        <p class="empty-state__desc">Share your code and earn points when friends join and get funded.</p>
+      </div>
+
+    </div>
+
+    <!-- ── Tab: Shop ── -->
+    <div class="tab-panel" id="panel-shop" role="tabpanel">
+
+      <div class="section-header">
+        <span class="section-title">Redeem Points</span>
+        <span class="text-xs text-muted" id="shop-balance-label">0 pts available</span>
+      </div>
+
+      <div id="shop-list"></div>
+
+      <div class="empty-state" id="no-shop" style="display:none;">
+        <div class="empty-state__icon">🏪</div>
+        <p class="empty-state__title">Shop is empty</p>
+        <p class="empty-state__desc">No discount codes are available to redeem right now. Check back soon.</p>
+      </div>
+
+    </div>
+
+  </div><!-- /#loaded-content -->
+
+</main>
+
+<!-- Bottom nav -->
+<nav class="bottom-nav">
+  <a href="dashboard.html" class="nav-item">
+    <span class="nav-item__icon">🏠</span>
+    <span class="nav-item__label">Home</span>
+  </a>
+  <a href="marketplace.html" class="nav-item">
+    <span class="nav-item__icon">🛒</span>
+    <span class="nav-item__label">Buy</span>
+  </a>
+  <a href="points.html" class="nav-item nav-item--active">
+    <span class="nav-item__icon">⭐</span>
+    <span class="nav-item__label">Points</span>
+  </a>
+  <a href="support.html" class="nav-item">
+    <span class="nav-item__icon">💬</span>
+    <span class="nav-item__label">Support</span>
+  </a>
+</nav>
+
+<!-- ── Redeem Confirm Modal ── -->
+<div class="modal-overlay" id="redeem-modal" role="dialog" aria-modal="true" aria-label="Redeem Points">
+  <div class="modal">
+    <div class="modal__handle"></div>
+
+    <!-- Pre-redeem confirmation view -->
+    <div id="redeem-confirm-view">
+      <h2 class="modal__title">Redeem Points</h2>
+
+      <div class="redeem-preview" id="redeem-preview">
+        <div class="redeem-preview__row">
+          <span>Item</span>
+          <span id="preview-item-name">—</span>
+        </div>
+        <div class="redeem-preview__row">
+          <span>Discount</span>
+          <span id="preview-discount">—</span>
+        </div>
+        <div class="redeem-preview__row redeem-preview__row--total">
+          <span>Cost</span>
+          <span id="preview-cost">— pts</span>
+        </div>
+      </div>
+
+      <div class="form-error" id="redeem-error" style="display:none; margin-bottom:var(--sp-4);"></div>
+
+      <div class="stack stack--3">
+        <button class="btn btn--primary btn--full" id="btn-confirm-redeem">Confirm Redeem</button>
+        <button class="btn btn--ghost btn--full"   id="btn-cancel-redeem">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Post-redeem success view -->
+    <div id="redeem-success-view" style="display:none; text-align:center;">
+      <div style="font-size:2.5rem; margin-bottom:var(--sp-4);">🎉</div>
+      <h2 class="modal__title" style="text-align:center; margin-bottom:var(--sp-2);">Code Redeemed!</h2>
+      <p class="text-muted text-sm" style="margin-bottom:var(--sp-5);">Apply this code at checkout in the Marketplace.</p>
+
+      <div class="redeemed-code-box" style="margin-bottom:var(--sp-5);">
+        <div class="redeemed-code-box__label">Your Discount Code</div>
+        <div class="redeemed-code-box__code" id="redeemed-code-display">—</div>
+        <button class="btn btn--ghost btn--sm" id="btn-copy-redeemed-code">Copy Code</button>
+      </div>
+
+      <button class="btn btn--primary btn--full" id="btn-close-redeem-success">Done</button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // ─── Telegram init ──────────────────────────────────────────────────────
+  const tg = window.Telegram?.WebApp;
+  if (tg) { tg.ready(); tg.expand(); tg.BackButton.show(); }
+  tg?.BackButton?.onClick(() => { window.location.href = 'dashboard.html'; });
+
+  const telegramId = tg?.initDataUnsafe?.user?.id ?? null;
+
+  // ─── GAS endpoint ───────────────────────────────────────────────────────
+  const GAS_URL = 'https://script.google.com/macros/s/AKfycbyxBWddKkmKB-IFCCP2k6_ZL_KsKBTnqtYWIQ-2xIkblrfGCj0-Z6dbZzYkFrcNcL-t/exec'; // <-- paste your deployed GAS Web App URL here
+
+  // ─── State ──────────────────────────────────────────────────────────────
+  let pointsBalance   = 0;
+  let referralCode    = '';
+  let shopItems       = [];
+  let selectedShopItem = null;
+  let redeeming       = false;
+
+  // ─── DOM refs ───────────────────────────────────────────────────────────
+  const pageLoading     = document.getElementById('page-loading');
+  const mainContent     = document.getElementById('main-content');
+  const skeletons       = document.getElementById('skeletons');
+  const loadedContent   = document.getElementById('loaded-content');
+  const balanceEl       = document.getElementById('points-balance');
+  const ledgerList      = document.getElementById('ledger-list');
+  const noLedger        = document.getElementById('no-ledger');
+  const referralCodeEl  = document.getElementById('referral-code');
+  const referralTip     = document.getElementById('referral-tip');
+  const referralCount   = document.getElementById('referral-count');
+  const referralListEl  = document.getElementById('referral-list');
+  const noReferrals     = document.getElementById('no-referrals');
+  const shopList        = document.getElementById('shop-list');
+  const noShop          = document.getElementById('no-shop');
+  const shopBalanceLabel= document.getElementById('shop-balance-label');
+
+  // Redeem modal
+  const redeemModal         = document.getElementById('redeem-modal');
+  const redeemConfirmView   = document.getElementById('redeem-confirm-view');
+  const redeemSuccessView   = document.getElementById('redeem-success-view');
+  const previewItemName     = document.getElementById('preview-item-name');
+  const previewDiscount     = document.getElementById('preview-discount');
+  const previewCost         = document.getElementById('preview-cost');
+  const redeemError         = document.getElementById('redeem-error');
+  const btnConfirmRedeem    = document.getElementById('btn-confirm-redeem');
+  const btnCancelRedeem     = document.getElementById('btn-cancel-redeem');
+  const redeemedCodeDisplay = document.getElementById('redeemed-code-display');
+  const btnCopyRedeemedCode = document.getElementById('btn-copy-redeemed-code');
+  const btnCloseRedeemSuccess = document.getElementById('btn-close-redeem-success');
+
+  // ─── Boot ───────────────────────────────────────────────────────────────
+  async function init() {
+    try {
+      const res = await gasPost({ action: 'getPoints', telegram_id: telegramId });
+
+      pointsBalance = res.points_balance || 0;
+      referralCode  = res.referral_code  || '';
+      shopItems     = res.shop_items     || [];
+
+      balanceEl.textContent       = formatPoints(pointsBalance);
+      shopBalanceLabel.textContent = formatPoints(pointsBalance) + ' pts available';
+
+      renderLedger(res.ledger     || []);
+      renderReferrals(res.referrals || [], res.points_per_referral || 0);
+      renderShop(shopItems);
+
+      skeletons.style.display     = 'none';
+      loadedContent.style.display = 'block';
+
+    } catch (err) {
+      console.error('Points init error:', err);
+      skeletons.style.display     = 'none';
+      loadedContent.style.display = 'block';
+      showToast('Failed to load points data.', 'error');
+    } finally {
+      pageLoading.style.display = 'none';
+      mainContent.style.display = 'block';
+    }
+  }
+
+  // ─── Render ledger ──────────────────────────────────────────────────────
+  function renderLedger(entries) {
+    ledgerList.innerHTML = '';
+    if (entries.length === 0) {
+      noLedger.style.display = 'flex';
+      return;
+    }
+    noLedger.style.display = 'none';
+
+    entries.forEach(entry => {
+      const isEarn = entry.points > 0;
+      const item   = document.createElement('div');
+      item.className = 'ledger__item';
+      item.innerHTML = `
+        <div style="flex:1; min-width:0;">
+          <div class="ledger__reason">${escHtml(entry.reason || entry.type)}</div>
+          <div class="ledger__date">${formatDate(entry.created_at)}</div>
+        </div>
+        <div class="ledger__pts ledger__pts--${isEarn ? 'earn' : 'spend'}">
+          ${isEarn ? '+' : ''}${formatPoints(entry.points)} pts
+        </div>
+      `;
+      ledgerList.appendChild(item);
+    });
+  }
+
+  // ─── Render referrals ───────────────────────────────────────────────────
+  function renderReferrals(referrals, pointsPerReferral) {
+    // Code + share
+    referralCodeEl.textContent = referralCode || '—';
+    if (pointsPerReferral > 0) {
+      referralTip.textContent = `Earn ${formatPoints(pointsPerReferral)} pts when a friend's payment is confirmed.`;
+    }
+    referralCount.textContent = referrals.length + ' total';
+
+    if (referrals.length === 0) {
+      noReferrals.style.display = 'flex';
+      referralListEl.innerHTML  = '';
+      return;
+    }
+    noReferrals.style.display = 'none';
+    referralListEl.innerHTML  = '';
+
+    referrals.forEach(ref => {
+      const converted = ref.status === 'converted';
+      const row = document.createElement('div');
+      row.className = 'referral-row';
+      row.innerHTML = `
+        <div>
+          <div class="referral-row__name">${escHtml(ref.referred_username || 'Trader')}</div>
+          <div class="referral-row__date">${formatDate(ref.converted_at || ref.created_at)}</div>
+        </div>
+        <span class="badge badge--${converted ? 'confirmed' : 'pending'}">
+          ${converted ? 'Converted' : 'Pending'}
+        </span>
+      `;
+      referralListEl.appendChild(row);
+    });
+  }
+
+  // ─── Render shop ────────────────────────────────────────────────────────
+  function renderShop(items) {
+    shopList.innerHTML = '';
+    const active = items.filter(i => i.is_active);
+    if (active.length === 0) {
+      noShop.style.display = 'flex';
+      return;
+    }
+    noShop.style.display = 'none';
+
+    active.forEach(item => {
+      const canAfford  = pointsBalance >= (item.points_cost || 0);
+      const card = document.createElement('div');
+      card.className = 'shop-item' + (canAfford ? ' shop-item--affordable' : '');
+      card.innerHTML = `
+        <div class="shop-item__left">
+          <div class="shop-item__name">${escHtml(item.name || item.code)}</div>
+          <div class="shop-item__cost">
+            <strong>${formatPoints(item.points_cost)} pts</strong> to redeem
+          </div>
+          <span class="shop-item__discount">${item.discount_percent}% off</span>
+        </div>
+        <button class="btn btn--${canAfford ? 'primary' : 'ghost'} btn--sm"
+                ${canAfford ? '' : 'disabled'}
+                data-item-id="${escHtml(String(item.code))}">
+          ${canAfford ? 'Redeem' : 'Need ' + formatPoints((item.points_cost || 0) - pointsBalance) + ' more'}
+        </button>
+      `;
+      card.querySelector('button').addEventListener('click', () => {
+        if (canAfford) openRedeemModal(item);
+      });
+      shopList.appendChild(card);
+    });
+  }
+
+  // ─── Segment tabs ───────────────────────────────────────────────────────
+  document.querySelectorAll('.seg-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const target = tab.dataset.tab;
+
+      document.querySelectorAll('.seg-tab').forEach(t => {
+        t.classList.remove('seg-tab--active');
+        t.setAttribute('aria-selected', 'false');
+      });
+      document.querySelectorAll('.tab-panel').forEach(p => {
+        p.classList.remove('tab-panel--active');
+      });
+
+      tab.classList.add('seg-tab--active');
+      tab.setAttribute('aria-selected', 'true');
+      document.getElementById('panel-' + target).classList.add('tab-panel--active');
+
+      tg?.HapticFeedback?.selectionChanged();
+    });
+  });
+
+  // ─── Copy referral code ─────────────────────────────────────────────────
+  document.getElementById('btn-copy-code').addEventListener('click', async () => {
+    if (!referralCode) return;
+    await copyToClipboard(referralCode);
+    showToast('Referral code copied!', 'success');
+    tg?.HapticFeedback?.notificationOccurred('success');
+  });
+
+  // ─── Share invite link ──────────────────────────────────────────────────
+  document.getElementById('btn-share-link').addEventListener('click', () => {
+    if (!referralCode) return;
+    const botName   = 'NowFundedBot'; // update to your bot username
+    const shareLink = `https://t.me/${botName}?start=${referralCode}`;
+    const shareText = `Join NowFunded — trade real capital, keep the profits. Use my code ${referralCode}:`;
+
+    if (tg?.openTelegramLink) {
+      tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(shareLink)}&text=${encodeURIComponent(shareText)}`);
+    } else {
+      copyToClipboard(shareLink);
+      showToast('Invite link copied!', 'success');
+    }
+    tg?.HapticFeedback?.notificationOccurred('success');
+  });
+
+  // ─── Redeem modal ───────────────────────────────────────────────────────
+  function openRedeemModal(item) {
+    selectedShopItem = item;
+    redeemError.style.display = 'none';
+    redeemConfirmView.style.display = 'block';
+    redeemSuccessView.style.display = 'none';
+
+    previewItemName.textContent = item.name || item.code;
+    previewDiscount.textContent = item.discount_percent + '% off';
+    previewCost.textContent     = formatPoints(item.points_cost) + ' pts';
+
+    openModal(redeemModal);
+    tg?.HapticFeedback?.selectionChanged();
+  }
+
+  btnCancelRedeem.addEventListener('click', () => closeModal(redeemModal));
+  redeemModal.addEventListener('click', e => {
+    if (e.target === redeemModal) closeModal(redeemModal);
+  });
+
+  btnConfirmRedeem.addEventListener('click', async () => {
+    if (redeeming || !selectedShopItem) return;
+    redeeming = true;
+    btnConfirmRedeem.classList.add('btn--loading');
+    btnConfirmRedeem.disabled = true;
+    redeemError.style.display = 'none';
+
+    try {
+      const res = await gasPost({
+        action:      'redeemPoints',
+        telegram_id: telegramId,
+        shop_code:   selectedShopItem.code,
+      });
+
+      if (res.success) {
+        tg?.HapticFeedback?.notificationOccurred('success');
+
+        // Update balance locally
+        pointsBalance -= selectedShopItem.points_cost;
+        balanceEl.textContent        = formatPoints(pointsBalance);
+        shopBalanceLabel.textContent = formatPoints(pointsBalance) + ' pts available';
+
+        // Show success view
+        redeemedCodeDisplay.textContent = res.discount_code || selectedShopItem.code;
+        redeemConfirmView.style.display = 'none';
+        redeemSuccessView.style.display = 'block';
+
+        // Refresh shop (affordability may have changed)
+        renderShop(shopItems);
+
+        // Prepend ledger entry
+        const newEntry = document.createElement('div');
+        newEntry.className = 'ledger__item';
+        newEntry.innerHTML = `
+          <div style="flex:1;">
+            <div class="ledger__reason">Redeemed: ${escHtml(selectedShopItem.name || selectedShopItem.code)}</div>
+            <div class="ledger__date">Just now</div>
+          </div>
+          <div class="ledger__pts ledger__pts--spend">
+            -${formatPoints(selectedShopItem.points_cost)} pts
+          </div>
+        `;
+        ledgerList.prepend(newEntry);
+        noLedger.style.display = 'none';
+
+      } else {
+        throw new Error(res.error || 'Redemption failed.');
+      }
+
+    } catch (err) {
+      redeemError.textContent    = err.message;
+      redeemError.style.display  = 'block';
+      tg?.HapticFeedback?.notificationOccurred('error');
+    } finally {
+      btnConfirmRedeem.classList.remove('btn--loading');
+      btnConfirmRedeem.disabled = false;
+      redeeming = false;
+    }
+  });
+
+  btnCopyRedeemedCode.addEventListener('click', async () => {
+    await copyToClipboard(redeemedCodeDisplay.textContent);
+    showToast('Code copied!', 'success');
+    tg?.HapticFeedback?.notificationOccurred('success');
+  });
+
+  btnCloseRedeemSuccess.addEventListener('click', () => closeModal(redeemModal));
+
+  // ─── Modal helpers ──────────────────────────────────────────────────────
+  function openModal(el) {
+    el.classList.add('modal-overlay--open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeModal(el) {
+    el.classList.remove('modal-overlay--open');
+    document.body.style.overflow = '';
+  }
+
+  // ─── Toast ──────────────────────────────────────────────────────────────
+  function showToast(msg, type = 'info') {
+    const icons = { success: '✓', error: '✕', info: '●' };
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast toast--${type}`;
+    toast.innerHTML = `<span class="toast__icon">${icons[type]}</span><span class="toast__msg">${escHtml(msg)}</span>`;
+    container.appendChild(toast);
+    setTimeout(() => {
+      toast.classList.add('toast--exit');
+      setTimeout(() => toast.remove(), 300);
+    }, 3000);
+  }
+
+  // ─── Clipboard ──────────────────────────────────────────────────────────
+  async function copyToClipboard(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // fallback
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity  = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+    }
+  }
+
+  // ─── GAS helper ─────────────────────────────────────────────────────────
+  async function gasPost(body) {
+    if (!GAS_URL) throw new Error('GAS_URL not set');
+    const res  = await fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    return data;
+  }
+
+  // ─── Utils ──────────────────────────────────────────────────────────────
+  function formatPoints(n) {
+    return Number(n || 0).toLocaleString('en-US');
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  function escHtml(str) {
+    return String(str ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // ─── Kick off ───────────────────────────────────────────────────────────
+  init();
+</script>
+</body>
+</html>
